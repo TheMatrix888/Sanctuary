@@ -1,4 +1,4 @@
-from terminal.primitives.ansi import fg_color, bg_color, reset_color
+from .ansi import fg_color, bg_color, reset_color
 
 
 class Symbol:

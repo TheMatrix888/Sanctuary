@@ -1,8 +1,9 @@
-from terminal.primitives.symbol import Symbol
+from engine.primitives.symbol import Symbol
+
 
 class ScreenObject:
     """
-    Drawable object positioned on the terminal screen.
+    Drawable object positioned on the engine screen.
 
     Parameters:
         x, y: Position on the screen (top-left corner).
@@ -11,9 +12,9 @@ class ScreenObject:
             - list[list[Symbol]] -> used as-is
         screen: Rendering backend.
     """
-    def __init__(self, content, screen: "Screen", x : int = 0, y: int = 0):
-        self.x = x
-        self.y = y
+
+    def __init__(self, x: int = 0, y: int = 0, content=None, screen=None):
+        self.x, self.y = x, y
         self.content = self._normalize_content(content)
         self.screen = screen
 
@@ -39,4 +40,5 @@ class ScreenObject:
         self.content = self._normalize_content(content)
 
     def draw(self):
-        self.screen.draw(self)
+        if self.screen:
+            self.screen.draw(self)

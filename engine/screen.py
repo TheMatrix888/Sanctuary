@@ -1,9 +1,8 @@
-from terminal.backends.windows import WindowsScreen
-from terminal.primitives.symbol import Symbol
-from terminal.primitives.ansi import move_cursor
-from terminal.primitives.screen_object import ScreenObject
+from engine.backends import WindowsScreen
+from engine.primitives import Symbol, move_cursor
+from engine.screen_objects import ScreenObject
 
-import sys
+from sys import stdout
 
 
 class Screen:
@@ -105,7 +104,7 @@ class Screen:
                 parts.append(move_cursor(0, y))
                 parts.extend(symbol.rendered() for symbol in line_new)
                 self.buffer_old[y] = line_new[:]  # [:] ???
-        sys.stdout.write("".join(parts))
+        stdout.write("".join(parts))
 
     def clear(self):
         """
