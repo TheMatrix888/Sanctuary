@@ -3,7 +3,8 @@ from abc import ABC, abstractmethod
 
 class State(ABC):
     def __init__(self, app):
-        self.app = app
+        self.input_handler = app.input_handler
+        self.screen = app.screen
 
     @abstractmethod
     def on_enter(self):
@@ -14,7 +15,7 @@ class State(ABC):
         pass
 
     @abstractmethod
-    def handle_input(self, input_handler):
+    def handle_input(self):
         pass
 
     @abstractmethod
@@ -22,5 +23,5 @@ class State(ABC):
         pass
 
     @abstractmethod
-    def get_screen_objects(self):
+    def render(self):
         pass

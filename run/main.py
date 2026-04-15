@@ -13,19 +13,10 @@ app.push_state(create_menus(app))
 try:
     while app.running:
         input_handler.update()
-
         state = app.current_state
-        state.handle_input(input_handler)
+        state.handle_input()
         state.update()
-
-
-        screen.clear()
-
-        screen_objects = state.get_screen_objects()
-        for screen_object in screen_objects:
-            screen.draw(screen_object)
-
-        screen.update()
+        state.render()
 
 except KeyboardInterrupt:
     app.stop()
