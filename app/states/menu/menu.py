@@ -7,7 +7,8 @@ from time import time
 
 
 class Menu(State):
-    def __init__(self, name: str, items: list[MenuItem], cycle_pointer=False):
+    def __init__(self, app, name: str, items: list[MenuItem], cycle_pointer=False):
+        super().__init__(app)
         self.pointer = 0
         self.cycle_pointer = cycle_pointer
         self.name = name

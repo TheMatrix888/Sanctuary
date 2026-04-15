@@ -1,10 +1,14 @@
 from .state import State
+from .input_handler import InputHandler
+from engine.screen import Screen
 
 
 class App:
-    def __init__(self):
+    def __init__(self, input_handler: InputHandler, screen: Screen):
         self.running = True
         self.state_stack = []
+        self.input_handler = input_handler
+        self.screen = screen
 
     def push_state(self, state: State):
         self.state_stack.append(state)

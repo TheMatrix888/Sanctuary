@@ -3,16 +3,14 @@ from .menu_item import MenuItem
 
 
 def create_menus(app):
-    main_menu = Menu("Main menu",
+    main_menu = Menu(app, "Main menu",
                      [
-                         MenuItem("Sample menu", lambda: app.push_state(sample_menu)),
-                         MenuItem("Item", lambda: None),
+                         MenuItem("Demo menu", lambda: app.push_state(demo_menu)),
                          MenuItem("Exit", lambda: app.stop())
                      ])
-    sample_menu = Menu("Sample menu",
+    demo_menu = Menu(app, "Demo menu",
                        [
-                           MenuItem("Item 1", lambda: None),
-                           MenuItem("Item 2", lambda: None),
+                           MenuItem("Demo animation 0", lambda: None),
                            MenuItem("Back", lambda: app.pop_state()),
                        ])
     return main_menu

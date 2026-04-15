@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 
 
 class State(ABC):
+    def __init__(self, app):
+        self.app = app
+
     @abstractmethod
     def on_enter(self):
         pass
