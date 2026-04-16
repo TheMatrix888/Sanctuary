@@ -12,7 +12,7 @@ class InputHandler:
 
     def __init__(self):
         self.event_queue = Queue()
-        self.keys_pressed = set()
+        self.prev_keys, self.curr_keys = set(), set()
         self.listener = keyboard.Listener(
             on_press=self.on_press,
             on_release=self.on_release
@@ -42,6 +42,7 @@ class InputHandler:
         return None
 
     def update(self):
+        events = {}
         while not self.event_queue.empty():
             event_type, key = self.event_queue.get()
             key = self.normalize_key(key)
@@ -49,14 +50,21 @@ class InputHandler:
             if key is None:
                 continue
 
+            events[key] = event_type
+
+        self.prev_keys = self.curr_keys.copy()
+        for key, event_type in events.items():
             if event_type == "press":
-                self.keys_pressed.add(key)
+                self.curr_keys.add(key)
             elif event_type == "release":
-                self.keys_pressed.discard(key)
+                self.curr_keys.discard(key)
 
     @property
     def idle(self):
-        return not self.keys_pressed
+        return not self.curr_keys
 
     def is_pressed(self, key):
-        return key in self.keys_pressed
+        return key in self.curr_keys and key not in self.prev_keys
+
+    def is_held(self, key):
+        return key in self.curr_keys
