@@ -2,7 +2,6 @@ from app.core import State, InputHandler
 from .menu_item import MenuItem
 from engine.screen_objects import ScreenObject
 
-from pynput import keyboard
 from time import time
 
 
@@ -16,19 +15,19 @@ class Menu(State):
         self.last_input = time()
 
     def on_enter(self):
-        pass
+        self.last_input = time()
 
     def on_exit(self):
         self.pointer = 0
 
     def handle_input(self):
-        keys_pressed = self.input_handler.get_keys_pressed()
-        if keys_pressed and (time() - self.last_input > 0.2):
-            if keyboard.Key.up in keys_pressed:
+        input_handler = self.input_handler
+        if not input_handler.idle and (time() - self.last_input > 0.2):
+            if input_handler.is_pressed("up"):
                 self.up()
-            elif keyboard.Key.down in keys_pressed:
+            elif input_handler.is_pressed("down"):
                 self.down()
-            elif keyboard.Key.enter in keys_pressed:
+            elif input_handler.is_pressed("enter"):
                 self.select()
             self.last_input = time()
 

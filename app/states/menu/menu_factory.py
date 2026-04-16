@@ -2,7 +2,7 @@ from .menu import Menu
 from .menu_item import MenuItem
 
 
-def create_menus(app):
+def create_menus(app, animations):
     main_menu = Menu(app, "Main menu",
                      [
                          MenuItem("Demo menu", lambda: app.push_state(demo_menu)),
