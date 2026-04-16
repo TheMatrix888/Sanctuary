@@ -8,9 +8,12 @@ def create_menus(app, animations):
                          MenuItem("Demo menu", lambda: app.push_state(demo_menu)),
                          MenuItem("Exit", lambda: app.stop())
                      ])
+    # Demo menu creation
+
     demo_menu = Menu(app, "Demo menu",
-                       [
-                           MenuItem("Demo animation 0", lambda: app.push_state(animations[0])),
-                           MenuItem("Back", lambda: app.pop_state()),
-                       ])
+                     [
+                         MenuItem(animation.name, lambda: app.push_state(animation)) for animation in animations
+                     ]
+                     + [MenuItem("Back", lambda: app.pop_state())]
+                     )
     return main_menu

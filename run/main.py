@@ -9,6 +9,7 @@ input_handler.start()
 screen = Screen(400, 400, 40, 20)
 
 app = App(input_handler, screen)
+
 animations = create_animations(app)
 menu = create_menus(app, animations)
 app.push_state(menu)

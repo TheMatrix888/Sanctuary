@@ -18,7 +18,7 @@ def demo0(frame: int, fps: int, duration: int, columns: int, lines: int):
         "|#|",
         "\\-/"
     ])
-    cords = ScreenObject(0, lines - 1, [f"x {x} y {y}"])
+    cords = ScreenObject(0, lines - 2, [f"x {x} y {y}"])
     frame += 1
     if frame > total_frames:
         frame = 0

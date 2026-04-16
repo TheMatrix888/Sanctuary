@@ -8,6 +8,7 @@ class ScreenObject:
     Parameters:
         x, y: Position on the screen (top-left corner).
         content:
+            - str
             - list[str] -> will be converted to Symbol grid
             - list[list[Symbol]] -> used as-is
         screen: Rendering backend.
@@ -21,6 +22,11 @@ class ScreenObject:
     def _normalize_content(self, content):
         if not content:
             return []
+
+        if isinstance(content, str):
+            return [
+                [Symbol(char) for char in content]
+            ]
 
         if all(isinstance(line, str) for line in content):
             return [

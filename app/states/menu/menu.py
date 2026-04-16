@@ -36,6 +36,7 @@ class Menu(State):
 
     def render(self):
         screen_object = ScreenObject(0, 0)
+        self.status_bar.update_content(self.name)
         content = []
         for i, item in enumerate(self.items):
             line = f"{i + 1}." + item.label
@@ -45,6 +46,7 @@ class Menu(State):
         screen_object.update_content(content)
         self.screen.clear()
         self.screen.draw(screen_object)
+        self.screen.draw(self.status_bar)
         self.screen.update()
 
     def up(self):

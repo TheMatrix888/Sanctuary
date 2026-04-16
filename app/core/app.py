@@ -1,6 +1,7 @@
 from .state import State
 from .input_handler import InputHandler
 from engine.screen import Screen
+from engine.screen_objects import ScreenObject
 
 
 class App:
@@ -9,6 +10,7 @@ class App:
         self.state_stack = []
         self.input_handler = input_handler
         self.screen = screen
+        self.status_bar = ScreenObject(0, screen.lines - 1)
 
     def push_state(self, state: State):
         self.state_stack.append(state)

@@ -3,11 +3,12 @@ from time import time
 
 
 class Animation(State):
-    def __init__(self, app, frame_generator, duration, fps):
+    def __init__(self, app, frame_generator, duration_seconds: float, fps: int):
         super().__init__(app)
-        self.frame_generator = frame_generator
 
-        self.duration = duration
+        self.name = frame_generator.__name__
+        self.frame_generator = frame_generator
+        self.duration_seconds = duration_seconds
         self.fps = fps
         self.frame_time = 1 / fps
 
@@ -34,9 +35,11 @@ class Animation(State):
 
     def render(self):
         if time() - self.last_render > self.frame_time:
-            self.frame, screen_objects = self.frame_generator(self.frame, self.fps, self.duration, self.columns, self.lines)
+            self.status_bar.update_content(f"{self.name} Press q/esc to exit")
+            self.frame, screen_objects = self.frame_generator(self.frame, self.fps, self.duration_seconds, self.columns, self.lines)
             self.screen.clear()
             for screen_object in screen_objects:
                 self.screen.draw(screen_object)
+            self.screen.draw(self.status_bar)
             self.screen.update()
             self.last_render = time()
