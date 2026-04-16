@@ -10,7 +10,7 @@ def create_menus(app, animations):
                      ])
     demo_menu = Menu(app, "Demo menu",
                        [
-                           MenuItem("Demo animation 0", lambda: None),
+                           MenuItem("Demo animation 0", lambda: app.push_state(animations[0])),
                            MenuItem("Back", lambda: app.pop_state()),
                        ])
     return main_menu

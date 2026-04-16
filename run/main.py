@@ -1,4 +1,5 @@
 from app.core import App, InputHandler
+from app.states.animation import create_animations
 from app.states.menu import create_menus
 from engine.screen import Screen
 
@@ -8,7 +9,9 @@ input_handler.start()
 screen = Screen(400, 400, 40, 20)
 
 app = App(input_handler, screen)
-app.push_state(create_menus(app))
+animations = create_animations(app)
+menu = create_menus(app, animations)
+app.push_state(menu)
 
 try:
     while app.running:

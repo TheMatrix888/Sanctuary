@@ -5,6 +5,7 @@ class State(ABC):
     def __init__(self, app):
         self.input_handler = app.input_handler
         self.screen = app.screen
+        self.exit_function = app.pop_state
 
     @abstractmethod
     def on_enter(self):
