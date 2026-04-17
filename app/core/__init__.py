@@ -1,6 +1,7 @@
 from .app import App
-from .state_context import StateContext, MenuContext
 from .state import State
+from .state_context import StateContext, MenuContext
 from .input_handler import InputHandler
+from .factory_protocol import FactoryProtocol
 
-__all__ = ["App", "StateContext", "MenuContext", "State", "InputHandler"]
+__all__ = ["App", "State", "StateContext", "MenuContext", "InputHandler", "FactoryProtocol"]

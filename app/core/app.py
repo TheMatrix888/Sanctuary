@@ -1,11 +1,11 @@
 from typing import Type
 
+from .state import State
 from .state_context import StateContext, MenuContext
 from .input_handler import InputHandler
+from .factory_protocol import FactoryProtocol
 from engine.screen import Screen
 from engine.screen_objects import StatusBar
-from .state import State
-from .state_factory import StateFactory
 
 
 class App:
@@ -51,7 +51,7 @@ class App:
 
         return None
 
-    def push_state_factory(self, factory: StateFactory):
+    def push_state_factory(self, factory: FactoryProtocol):
         context = self.create_state_context(factory.context_type)
         state = factory(context)
         self.push_state(state)
