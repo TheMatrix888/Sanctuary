@@ -20,6 +20,7 @@ class App:
         if self.state_stack:
             state = self.state_stack.pop()
             state.on_exit()
+            self.current_state.on_enter()
 
     @property
     def current_state(self) -> State:
