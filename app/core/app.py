@@ -12,6 +12,8 @@ class App:
         self.status_bar = StatusBar()
 
     def push_state(self, state: "State"):
+        if self.state_stack:
+            self.current_state.on_exit()
         self.state_stack.append(state)
         state.on_enter()
 
