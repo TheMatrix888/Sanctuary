@@ -13,7 +13,10 @@ class StatusBar(Text):
         self.segments.pop(key, None)
 
     def _compose_text(self):
-        lines = [value for value in self.segments.values()]
+        lines = []
+        for value in self.segments.values():
+            if value != " ":
+                lines.append(value)
         composed_text = " ".join(lines)
         return composed_text
 
