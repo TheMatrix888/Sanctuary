@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
-from app.core import App
+from .state_context import StateContext
+
 
 class State(ABC):
-    def __init__(self, app: App):
-        self.input_handler = app.input_handler
-        self.screen = app.screen
-        self.exit_function = app.pop_state
-        self.status_bar = app.status_bar
+    def __init__(self, context: StateContext):
+        self.input_handler = context.input_handler
+        self.screen = context.screen
+        self.status_bar = context.status_bar
+        self.pop_state = context.pop_state
 
     @abstractmethod
     def on_enter(self):

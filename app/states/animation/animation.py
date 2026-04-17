@@ -1,3 +1,5 @@
+from typing import Type
+
 from app.core import State
 from app.states.animation.frame_generator import FrameGenerator
 
@@ -5,12 +7,12 @@ from app.states.animation.frame_generator import FrameGenerator
 class Animation(State):
     FPS = 60
 
-    def __init__(self, app, frame_generator: FrameGenerator, duration_seconds: float):
+    def __init__(self, app, frame_generator: Type[FrameGenerator], duration_seconds: float):
         super().__init__(app)
         self.columns, self.lines = self.screen.columns, self.screen.lines
 
         self.name = type(frame_generator).__name__
-        self.frame_generator = frame_generator
+        self.frame_generator = frame_generator()
 
         self.total_frames = duration_seconds * self.FPS
         self.frame = 0
@@ -28,7 +30,7 @@ class Animation(State):
         input_handler = self.input_handler
         if not input_handler.idle:
             if input_handler.is_pressed("q") or input_handler.is_pressed("esc"):
-                self.exit_function()
+                self.pop_state()
 
     def update(self):
         pass

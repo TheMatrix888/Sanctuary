@@ -1,15 +1,30 @@
 from .animation import Animation
 from engine.screen_objects import ScreenObject, Text
 from .frame_generator import FrameGenerator
+from app.core import StateContext
 
 FPS = 60
 
 
-def create_animations(app):
-    return [
-        Animation(app, Demo0(), 10),
-        Animation(app, TextDemo(), 10)
-    ]
+def create_animation_factories():
+    factories = []
+
+    def demo0_factory(context: StateContext):
+        return Animation(context, Demo0, 10)
+
+    demo0_factory.name = "Demo0"
+    demo0_factory.context_type = StateContext
+
+    def text_demo_factory(context: StateContext):
+        return Animation(context, TextDemo, 10)
+
+    text_demo_factory.name = "TextDemo"
+    text_demo_factory.context_type = StateContext
+
+    factories.append(demo0_factory)
+    factories.append(text_demo_factory)
+
+    return factories
 
 
 class Demo0(FrameGenerator):

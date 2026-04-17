@@ -1,5 +1,5 @@
 from app.core import App, InputHandler
-from app.states.animation import create_animations
+from app.states.animation import create_animation_factories
 from app.states.menu import create_menus
 from engine.screen import Screen
 from time import time, sleep
@@ -12,10 +12,10 @@ screen = Screen((400, 400), 40, 20)
 app = App(input_handler, screen)
 
 # State creation
-animations = create_animations(app)
-main_menu = create_menus(app, animations)
+animation_factories = create_animation_factories()
+menu_factory = create_menus(animation_factories)
 
-app.push_state(main_menu)
+app.push_state_factory(menu_factory)
 
 try:
     target_ups = 60
