@@ -1,7 +1,6 @@
-from .state import State
 from .input_handler import InputHandler
 from engine.screen import Screen
-from engine.screen_objects import ScreenObject
+from engine.screen_objects import StatusBar
 
 
 class App:
@@ -10,9 +9,9 @@ class App:
         self.state_stack = []
         self.input_handler = input_handler
         self.screen = screen
-        self.status_bar = ScreenObject()
+        self.status_bar = StatusBar()
 
-    def push_state(self, state: State):
+    def push_state(self, state: "State"):
         self.state_stack.append(state)
         state.on_enter()
 
@@ -23,7 +22,7 @@ class App:
             self.current_state.on_enter()
 
     @property
-    def current_state(self) -> State:
+    def current_state(self) -> "State":
         return self.state_stack[-1]
 
     def stop(self):

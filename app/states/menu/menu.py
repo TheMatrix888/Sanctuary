@@ -1,8 +1,6 @@
-from app.core import State, InputHandler
+from app.core import State
 from .menu_item import MenuItem
 from engine.screen_objects import ScreenObject
-
-from time import time
 
 
 class Menu(State):
@@ -14,11 +12,13 @@ class Menu(State):
         self.cycle_pointer = cycle_pointer
 
     def on_enter(self):
-        self.status_bar.set_content(self.name)
+        self.status_bar.set_segment("menu", self.name)
+        self.status_bar.layout(self.screen.columns)
         self.screen.place(self.status_bar, "bottom_left")
 
     def on_exit(self):
         self.pointer = 0
+        self.status_bar.pop_segment("menu")
 
     def handle_input(self):
         input_handler = self.input_handler

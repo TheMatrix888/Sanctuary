@@ -1,27 +1,28 @@
-from typing import Callable
-
 from app.core import State
+from app.states.animation.frame_generator import FrameGenerator
 
 
 class Animation(State):
-    def __init__(self, app, frame_generator: Callable, duration_seconds: float):
+    FPS = 60
+
+    def __init__(self, app, frame_generator: FrameGenerator, duration_seconds: float):
         super().__init__(app)
-
-        self.name = frame_generator.__name__
-        self.frame_generator = frame_generator
-        self.duration_seconds = duration_seconds
-
         self.columns, self.lines = self.screen.columns, self.screen.lines
+
+        self.name = type(frame_generator).__name__
+        self.frame_generator = frame_generator
+
+        self.total_frames = duration_seconds * self.FPS
         self.frame = 0
 
     def on_enter(self):
         self.columns, self.lines = self.screen.columns, self.screen.lines
         self.frame = 0
-        self.status_bar.set_content(f"{self.name} Press q/esc to exit")
-        self.screen.place(self.status_bar, "bottom_left")
+        self.status_bar.set_segment("exit_guide", "press q/esc to exit")
 
     def on_exit(self):
-        pass
+        self.status_bar.pop_segment("exit_guide")
+        self.status_bar.pop_segment("animation_info")
 
     def handle_input(self):
         input_handler = self.input_handler
@@ -33,9 +34,21 @@ class Animation(State):
         pass
 
     def render(self):
-        self.frame, screen_objects = self.frame_generator(self.frame, self.duration_seconds, self.columns, self.lines)
+        progress = self.frame / self.total_frames
+        screen_objects, animation_info = self.frame_generator(progress, self.columns, self.lines)
+
         self.screen.clear()
+
         for screen_object in screen_objects:
             self.screen.draw(screen_object)
+
+        self.status_bar.set_segment("animation_info", animation_info)
+        self.status_bar.layout(self.screen.columns)
+        self.screen.place(self.status_bar, "bottom_left")
         self.screen.draw(self.status_bar)
+
         self.screen.update()
+
+        self.frame += 1
+        if self.frame > self.total_frames:
+            self.frame = 0

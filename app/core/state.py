@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-
+from app.core import App
 
 class State(ABC):
-    def __init__(self, app):
+    def __init__(self, app: App):
         self.input_handler = app.input_handler
         self.screen = app.screen
         self.exit_function = app.pop_state
