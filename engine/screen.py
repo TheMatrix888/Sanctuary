@@ -21,6 +21,18 @@ class Screen:
     """
     EMPTY_SYMBOL = Symbol(" ")
 
+    ALIGNMENTS = {
+        "top_left": lambda sw, sh, ow, oh: (0, 0),
+        "top": lambda sw, sh, ow, oh: ((sw - ow) // 2, 0),
+        "top_right": lambda sw, sh, ow, oh: (sw - ow, 0),
+        "left": lambda sw, sh, ow, oh: (0, (sh - oh) // 2),
+        "center": lambda sw, sh, ow, oh: ((sw - ow) // 2, (sh - oh) // 2),
+        "right": lambda sw, sh, ow, oh: (sw - ow, (sh - oh) // 2),
+        "bottom_left": lambda sw, sh, ow, oh: (0, sh - oh),
+        "bottom": lambda sw, sh, ow, oh: ((sw - ow) // 2, sh - oh),
+        "bottom_right": lambda sw, sh, ow, oh: (sw - ow, sh - oh)
+    }
+
     def __init__(
             self,
             pos: tuple[int, int],
@@ -93,6 +105,13 @@ class Screen:
                 if symbol == self.EMPTY_SYMBOL:
                     continue
                 self.buffer_new[screen_y][screen_x] = symbol
+
+    def place(self, screen_object: ScreenObject, align_by: str):
+        alignment = self.ALIGNMENTS.get(align_by)
+        if alignment is None:
+            raise Exception(f"Unsupported alignment {align_by}")
+        pos = alignment(self.columns, self.lines, screen_object.columns, screen_object.lines)
+        screen_object.move(pos)
 
     def update(self):
         """

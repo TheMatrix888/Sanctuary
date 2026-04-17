@@ -20,6 +20,7 @@ class ScreenObject:
     ):
         self.pos = pos
         self.content = self._normalize_content(content)
+        self.columns, self.lines = self._calculate_size()
 
     def _normalize_content(self, content):
         if not content:
@@ -41,8 +42,16 @@ class ScreenObject:
 
         raise TypeError("Unsupported content format")
 
+    def _calculate_size(self):
+        if not self.content:
+            return 0, 0
+        columns = max(len(line) for line in self.content)
+        lines = len(self.content)
+        return columns, lines
+
     def move(self, pos: tuple[int, int]):
         self.pos = pos
 
     def update_content(self, content: str | list[str] | list[list[Symbol]]):
         self.content = self._normalize_content(content)
+        self.columns, self.lines = self._calculate_size()

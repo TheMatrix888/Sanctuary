@@ -19,6 +19,8 @@ class Animation(State):
     def on_enter(self):
         self.columns, self.lines = self.screen.columns, self.screen.lines
         self.frame = 0
+        self.status_bar.update_content(f"{self.name} Press q/esc to exit")
+        self.screen.place(self.status_bar, "bottom_left")
         self.last_render = time()
 
     def on_exit(self):
@@ -35,7 +37,6 @@ class Animation(State):
 
     def render(self):
         if time() - self.last_render > self.frame_time:
-            self.status_bar.update_content(f"{self.name} Press q/esc to exit")
             self.frame, screen_objects = self.frame_generator(self.frame, self.fps, self.duration_seconds, self.columns, self.lines)
             self.screen.clear()
             for screen_object in screen_objects:

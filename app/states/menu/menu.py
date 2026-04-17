@@ -15,6 +15,8 @@ class Menu(State):
         self.last_input = time()
 
     def on_enter(self):
+        self.status_bar.update_content(self.name)
+        self.screen.place(self.status_bar, "bottom_left")
         self.last_input = time()
 
     def on_exit(self):
@@ -36,7 +38,6 @@ class Menu(State):
 
     def render(self):
         screen_object = ScreenObject((0, 0))
-        self.status_bar.update_content(self.name)
         content = []
         for i, item in enumerate(self.items):
             line = f"{i + 1}." + item.label
