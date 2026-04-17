@@ -12,6 +12,7 @@ class ScreenObject:
             - list[str] -> will be converted to Symbol grid
             - list[list[Symbol]] -> used as-is
     """
+    EMPTY_SYMBOL = Symbol(" ")
 
     def __init__(
             self,
@@ -27,25 +28,31 @@ class ScreenObject:
             return []
 
         if isinstance(content, str):
-            return [
+            content = [
                 [Symbol(char) for char in content]
             ]
 
         if all(isinstance(line, str) for line in content):
-            return [
+            content = [
                 [Symbol(char) for char in line]
                 for line in content
             ]
 
-        if all(isinstance(line, list) for line in content):
-            return content
+        if not all(isinstance(line, list) for line in content):
+            raise TypeError("Unsupported content format")
 
-        raise TypeError("Unsupported content format")
+        max_width = max(len(line) for line in content)
+        padded_content = [
+            line + [self.EMPTY_SYMBOL for _ in range(max_width - len(line))]
+            for line in content
+        ]
+
+        return padded_content
 
     def _calculate_size(self):
         if not self.content:
             return 0, 0
-        columns = max(len(line) for line in self.content)
+        columns = len(self.content[0])  # As content was already padded in _normalize_content()
         lines = len(self.content)
         return columns, lines
 
