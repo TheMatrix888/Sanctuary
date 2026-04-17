@@ -12,26 +12,23 @@ class Menu(State):
         self.name = name
         self.items = items
         self.cycle_pointer = cycle_pointer
-        self.last_input = time()
 
     def on_enter(self):
         self.status_bar.update_content(self.name)
         self.screen.place(self.status_bar, "bottom_left")
-        self.last_input = time()
 
     def on_exit(self):
         self.pointer = 0
 
     def handle_input(self):
         input_handler = self.input_handler
-        if not input_handler.idle and (time() - self.last_input > 0.2):
+        if not input_handler.idle:
             if input_handler.is_pressed("up"):
                 self.up()
             elif input_handler.is_pressed("down"):
                 self.down()
             elif input_handler.is_pressed("enter"):
                 self.select()
-            self.last_input = time()
 
     def update(self):
         pass
