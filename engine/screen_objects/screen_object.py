@@ -21,32 +21,36 @@ class ScreenObject:
     ):
         self.pos = pos
         self.content = self._normalize_content(content)
-        self.columns, self.lines = self._calculate_size()
+        self._recalculate()
 
     def _normalize_content(self, content):
         if not content:
             return []
 
         if isinstance(content, str):
-            content = [
+            return [
                 [Symbol(char) for char in content]
             ]
 
         if all(isinstance(line, str) for line in content):
-            content = [
+            return [
                 [Symbol(char) for char in line]
                 for line in content
             ]
 
-        if not all(isinstance(line, list) for line in content):
-            raise TypeError("Unsupported content format")
+        if all(isinstance(line, list) for line in content):
+            return content
 
+        raise TypeError("Unsupported content format")
+
+    def _pad_content(self, content):
+        if not content:
+            return None
         max_width = max(len(line) for line in content)
         padded_content = [
             line + [self.EMPTY_SYMBOL for _ in range(max_width - len(line))]
             for line in content
         ]
-
         return padded_content
 
     def _calculate_size(self):
@@ -56,9 +60,18 @@ class ScreenObject:
         lines = len(self.content)
         return columns, lines
 
+    def _recalculate(self):
+        self.content = self._pad_content(self.content)
+        self.columns, self.lines = self._calculate_size()
+
     def move(self, pos: tuple[int, int]):
         self.pos = pos
 
-    def update_content(self, content: str | list[str] | list[list[Symbol]]):
+    def set_content(self, content: str | list[str] | list[list[Symbol]]):
         self.content = self._normalize_content(content)
-        self.columns, self.lines = self._calculate_size()
+        self._recalculate()
+
+    def insert_content(self, content: str | list[str] | list[list[Symbol]], line: int):
+        new = self._normalize_content(content)
+        self.content[line:line] = new
+        self._recalculate()

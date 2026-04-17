@@ -14,7 +14,7 @@ class Menu(State):
         self.cycle_pointer = cycle_pointer
 
     def on_enter(self):
-        self.status_bar.update_content(self.name)
+        self.status_bar.set_content(self.name)
         self.screen.place(self.status_bar, "bottom_left")
 
     def on_exit(self):
@@ -41,7 +41,7 @@ class Menu(State):
             if i == self.pointer:
                 line += "<--"
             content.append(line)
-        screen_object.update_content(content)
+        screen_object.set_content(content)
         self.screen.clear()
         self.screen.draw(screen_object)
         self.screen.draw(self.status_bar)

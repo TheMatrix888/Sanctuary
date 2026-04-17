@@ -13,7 +13,7 @@ class Text(ScreenObject):
     def layout(self, width_columns: int):
         lines = self.wrap_text(width_columns)
         self.content = self._normalize_content(lines)
-        self.columns, self.lines = self._calculate_size()
+        self._recalculate()
 
     def wrap_text(self, width_columns: int):
         return [

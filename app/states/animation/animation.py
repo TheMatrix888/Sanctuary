@@ -17,7 +17,7 @@ class Animation(State):
     def on_enter(self):
         self.columns, self.lines = self.screen.columns, self.screen.lines
         self.frame = 0
-        self.status_bar.update_content(f"{self.name} Press q/esc to exit")
+        self.status_bar.set_content(f"{self.name} Press q/esc to exit")
         self.screen.place(self.status_bar, "bottom_left")
 
     def on_exit(self):
