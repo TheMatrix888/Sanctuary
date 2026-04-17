@@ -18,18 +18,19 @@ class Screen:
 
     Coordinates:
         (0, 0) is the top-left corner of the screen.
-
-    Notes:
-        - Symbols are expected to be immutable.
-        - buffer_new must be cleared manually between frames.
     """
     EMPTY_SYMBOL = Symbol(" ")
 
-    def __init__(self, x: int, y: int, columns: int, lines: int):
+    def __init__(
+            self,
+            pos: tuple[int, int],
+            columns: int,
+            lines: int
+    ):
         self._screen = WindowsScreen()
         self._screen.enable_ansi()
 
-        self.x, self.y = x, y
+        self.pos = pos
         self.columns, self.lines = columns, lines
 
         self.buffer_old = [
@@ -41,7 +42,7 @@ class Screen:
             [self.EMPTY_SYMBOL for _ in range(self.columns)]
             for _ in range(self.lines)
         ]
-        self.move(x, y)
+        self.move(pos)
         self.set_size(columns, lines)
 
     def resize_buffer(self, columns: int, lines: int):
@@ -69,21 +70,21 @@ class Screen:
         self._screen.set_buffer_size(columns, lines)
         self._screen.set_window_size(columns, lines)
 
-    def move(self, x: int, y: int):
-        self.x, self.y = x, y
-        self._screen.set_position_by_chars(x, y, self.columns, self.lines)
+    def move(self, pos: tuple[int, int]):
+        self.pos = pos
+        self._screen.set_position_by_chars(pos, self.columns, self.lines)
 
     def draw(self, screen_object: ScreenObject):
         content = screen_object.content
         for y in range(len(content)):
-            screen_y = y + screen_object.y
+            screen_y = y + screen_object.pos[1]
             if screen_y < 0:
                 continue
             if screen_y >= self.lines:
                 break
             line = content[y]
             for x in range(len(line)):
-                screen_x = x + screen_object.x
+                screen_x = x + screen_object.pos[0]
                 if screen_x < 0:
                     continue
                 if screen_x >= self.columns:
@@ -103,7 +104,7 @@ class Screen:
             if line_old != line_new:
                 parts.append(move_cursor(0, y))
                 parts.extend(symbol.rendered() for symbol in line_new)
-                self.buffer_old[y] = line_new[:]  # [:] ???
+                self.buffer_old[y] = line_new.copy()
         stdout.write("".join(parts))
 
     def clear(self):

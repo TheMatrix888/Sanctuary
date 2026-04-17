@@ -13,12 +13,14 @@ def demo0(frame: int, fps: int, duration: int, columns: int, lines: int):
     progress = frame / total_frames
     x = -3 + int((columns + 1) * progress)
     y = -3 + int((lines + 1) * progress)
-    capsule = ScreenObject(x, y, [
-        "/-\\",
-        "|#|",
-        "\\-/"
-    ])
-    cords = ScreenObject(0, lines - 2, [f"x {x} y {y}"])
+    capsule = ScreenObject(
+        (x, y),
+        [
+            "/-\\",
+            "|#|",
+            "\\-/"
+        ])
+    cords = ScreenObject((0, lines - 2), [f"x {x} y {y}"])
     frame += 1
     if frame > total_frames:
         frame = 0

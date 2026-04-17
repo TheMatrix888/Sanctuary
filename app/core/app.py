@@ -10,7 +10,7 @@ class App:
         self.state_stack = []
         self.input_handler = input_handler
         self.screen = screen
-        self.status_bar = ScreenObject(0, screen.lines - 1)
+        self.status_bar = ScreenObject((0, screen.lines - 1))
 
     def push_state(self, state: State):
         self.state_stack.append(state)

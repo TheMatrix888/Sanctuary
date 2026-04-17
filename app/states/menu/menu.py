@@ -35,7 +35,7 @@ class Menu(State):
         pass
 
     def render(self):
-        screen_object = ScreenObject(0, 0)
+        screen_object = ScreenObject((0, 0))
         self.status_bar.update_content(self.name)
         content = []
         for i, item in enumerate(self.items):

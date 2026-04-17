@@ -7,7 +7,7 @@ from time import time, sleep
 input_handler = InputHandler()
 input_handler.start()
 
-screen = Screen(400, 400, 40, 20)
+screen = Screen((400, 400), 40, 20)
 
 app = App(input_handler, screen)
 

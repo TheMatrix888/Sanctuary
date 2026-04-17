@@ -71,23 +71,23 @@ class WindowsScreen:
             ctypes.byref(rect)
         )
 
-    def move(self, x, y, width, height):
+    def move(self, pos: tuple[int, int], width: int, height: int):
         self.user32.MoveWindow(
             self.hwnd,
-            x,
-            y,
+            pos[0],
+            pos[1],
             width,
             height,
             True
         )
 
-    def set_position_by_chars(self, x, y, columns, lines):
+    def set_position_by_chars(self, pos:tuple[int, int], columns, lines):
         font_width, font_height = self.get_font_size()
 
         width = columns * font_width
         height = lines * font_height
 
-        self.move(x, y, width, height)
+        self.move(pos, width, height)
 
     def clear(self):
         ctypes.windll.kernel32.FillConsoleOutputCharacterW(
