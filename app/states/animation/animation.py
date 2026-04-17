@@ -28,9 +28,8 @@ class Animation(State):
 
     def handle_input(self):
         input_handler = self.input_handler
-        if not input_handler.idle:
-            if input_handler.is_pressed("q") or input_handler.is_pressed("esc"):
-                self.pop_state()
+        if input_handler.is_pressed("q") or input_handler.is_pressed("esc"):
+            self.pop_state()
 
     def update(self):
         pass

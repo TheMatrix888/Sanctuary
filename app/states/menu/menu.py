@@ -22,13 +22,12 @@ class Menu(State):
 
     def handle_input(self):
         input_handler = self.input_handler
-        if not input_handler.idle:
-            if input_handler.is_pressed("up"):
-                self.up()
-            elif input_handler.is_pressed("down"):
-                self.down()
-            elif input_handler.is_pressed("enter"):
-                self.select()
+        if input_handler.is_pressed("up"):
+            self.up()
+        elif input_handler.is_pressed("down"):
+            self.down()
+        elif input_handler.is_pressed("enter"):
+            self.select()
 
     def update(self):
         pass

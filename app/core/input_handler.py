@@ -59,10 +59,6 @@ class InputHandler:
             elif event_type == "release":
                 self.curr_keys.discard(key)
 
-    @property
-    def idle(self):
-        return not self.curr_keys
-
     def is_pressed(self, key):
         return key in self.curr_keys and key not in self.prev_keys
 
