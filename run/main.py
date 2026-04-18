@@ -24,10 +24,15 @@ try:
         start = time()
 
         input_handler.update()
+
         state = app.current_state
         state.handle_input()
         state.update()
+
+        screen.clear()
         state.render()
+        app.render_status_bar()
+        screen.update()
 
         elapsed = time() - start
         sleep_time = max(0.0, update_time - elapsed)

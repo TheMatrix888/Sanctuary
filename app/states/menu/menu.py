@@ -7,18 +7,16 @@ class Menu(State):
     def __init__(self, app, name: str, items: list[MenuItem], cycle_pointer=False):
         super().__init__(app)
         self.pointer = 0
+        self.status_segment_key = "menu"
         self.name = name
         self.items = items
         self.cycle_pointer = cycle_pointer
 
     def on_enter(self):
-        self.status_bar.set_segment("menu", self.name)
-        self.status_bar.layout(self.screen.columns)
-        self.screen.place(self.status_bar, "bottom_left")
+        self.set_status(self.name)
 
     def on_exit(self):
         self.pointer = 0
-        self.status_bar.pop_segment("menu")
 
     def handle_input(self):
         input_handler = self.input_handler
@@ -33,17 +31,14 @@ class Menu(State):
         pass
 
     def render(self):
-        screen_object = ScreenObject((0, 0))
         content = []
         for i, item in enumerate(self.items):
             line = f"{i + 1}." + item.label
             if i == self.pointer:
                 line += "<--"
             content.append(line)
-        screen_object.set_content(content)
-        self.screen.clear()
+        screen_object = ScreenObject((0, 0), content)
         self.screen.draw(screen_object)
-        self.screen.draw(self.status_bar)
         self.screen.update()
 
     def up(self):

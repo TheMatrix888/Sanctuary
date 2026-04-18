@@ -3,10 +3,12 @@ from .state_context import StateContext
 
 
 class State(ABC):
+    status_segment_key: str
+
     def __init__(self, context: StateContext):
         self.input_handler = context.input_handler
         self.screen = context.screen
-        self.status_bar = context.status_bar
+        self.set_status = context.set_status
         self.pop_state = context.pop_state
 
     @abstractmethod

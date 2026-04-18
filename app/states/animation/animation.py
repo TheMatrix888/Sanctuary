@@ -17,14 +17,14 @@ class Animation(State):
         self.total_frames = duration_seconds * self.FPS
         self.frame = 0
 
+        self.status_segment_key = "animation"
+
     def on_enter(self):
         self.columns, self.lines = self.screen.columns, self.screen.lines
         self.frame = 0
-        self.status_bar.set_segment("exit_guide", "press q/esc to exit")
 
     def on_exit(self):
-        self.status_bar.pop_segment("exit_guide")
-        self.status_bar.pop_segment("animation_info")
+        pass
 
     def handle_input(self):
         input_handler = self.input_handler
@@ -43,10 +43,7 @@ class Animation(State):
         for screen_object in screen_objects:
             self.screen.draw(screen_object)
 
-        self.status_bar.set_segment("animation_info", animation_info)
-        self.status_bar.layout(self.screen.columns)
-        self.screen.place(self.status_bar, "bottom_left")
-        self.screen.draw(self.status_bar)
+        self.set_status("press q/esc to exit " + animation_info)
 
         self.screen.update()
 

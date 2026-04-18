@@ -17,24 +17,24 @@ class App:
         self.status_bar = StatusBar()
 
     def push_state(self, state: State):
-        if self.state_stack:
-            self.current_state.on_exit()
-
+        current_state = self.current_state
+        if current_state:
+            self.status_bar.pop_segment(current_state.status_segment_key)
         self.state_stack.append(state)
         state.on_enter()
 
     def pop_state(self):
         if self.state_stack:
             state = self.state_stack.pop()
+            self.status_bar.pop_segment(state.status_segment_key)
             state.on_exit()
-            self.current_state.on_enter()
 
     def create_state_context(self, context_type: Type[StateContext]):
         if context_type == StateContext:
             return StateContext(
                 input_handler=self.input_handler,
                 screen=self.screen,
-                status_bar=self.status_bar,
+                set_status=self.set_status,
                 pop_state=self.pop_state
             )
 
@@ -42,7 +42,7 @@ class App:
             return MenuContext(
                 input_handler=self.input_handler,
                 screen=self.screen,
-                status_bar=self.status_bar,
+                set_status=self.set_status,
                 pop_state=self.pop_state,
                 push_state=self.push_state,
                 push_state_factory=self.push_state_factory,
@@ -57,11 +57,21 @@ class App:
         self.push_state(state)
 
     @property
-    def current_state(self) -> State:
-        return self.state_stack[-1]
+    def current_state(self) -> State | None:
+        return self.state_stack[-1] if self.state_stack else None
 
     def stop(self):
         while self.state_stack:
             state = self.state_stack.pop()
             state.on_exit()
         self.running = False
+
+    def set_status(self, text: str):
+        segment_key = self.current_state.status_segment_key
+        if segment_key:
+            self.status_bar.set_segment(segment_key, text)
+
+    def render_status_bar(self):
+        self.status_bar.layout(self.screen.columns)
+        self.screen.place(self.status_bar, "bottom_left")
+        self.screen.draw(self.status_bar)
