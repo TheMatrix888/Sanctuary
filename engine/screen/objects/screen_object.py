@@ -24,7 +24,14 @@ class ScreenObject:
         self.content = self._normalize_content(content)
         self._recalculate()
 
-    def _normalize_content(self, content):
+    def move_at(self, pos: Position):
+        self.pos = pos
+
+    def move_by(self, x: int, y: int):
+        self.pos.x += x
+        self.pos.y += y
+
+    def _normalize_content(self, content: str | list[str] | list[list[Symbol]] | None):
         if not content:
             return []
 
@@ -65,16 +72,6 @@ class ScreenObject:
         self.content = self._pad_content(self.content)
         self.size = self._calculate_size()
 
-    def move_at(self, pos: Position):
-        self.pos = pos
-
-    def move_by(self, x: int, y: int):
-        self.pos.x += x
-        self.pos.y += y
-
-    def resize(self, size: Size):
-        self.size = size
-
     def set_content(self, content: str | list[str] | list[list[Symbol]]):
         self.content = self._normalize_content(content)
         self._recalculate()
@@ -83,3 +80,20 @@ class ScreenObject:
         new = self._normalize_content(content)
         self.content[line:line] = new
         self._recalculate()
+
+    def _fit_content(self, size: Size):
+        result = []
+        for y in range(size.lines):
+            if y < len(self.content):
+                line = self.content[y][:size.columns]
+                padded = line + [self.EMPTY_SYMBOL for _ in range(size.columns - len(line))]
+            else:
+                padded = [self.EMPTY_SYMBOL] * size.columns
+
+            result.append(padded)
+
+        return result
+
+    def resize(self, size: Size):
+        self.content = self._fit_content(size)
+        self.size = size
