@@ -20,8 +20,15 @@ def create_animation_factories():
     text_demo_factory.name = "TextDemo"
     text_demo_factory.context_type = StateContext
 
+    def object_placement_factory(context: StateContext):
+        return Animation(context, ObjectPlacementDemo, 10)
+
+    object_placement_factory.name = "ObjectPlacementDemo"
+    object_placement_factory.context_type = StateContext
+
     factories.append(demo0_factory)
     factories.append(text_demo_factory)
+    factories.append(object_placement_factory)
 
     return factories
 
@@ -50,3 +57,20 @@ class TextDemo(FrameGenerator):
         text.layout(screen.columns)
         return [text], ""
 
+
+class ObjectPlacementDemo(FrameGenerator):
+    def __call__(self, screen: ScreenContext, progress: float):
+        content = [
+            "/-\\",
+            "|#|",
+            "\\-/"
+        ]
+        adjust_map = [
+            "top_left", "top", "top_right",
+            "left", "center", "right",
+            "bottom", "bottom_left", "bottom", "bottom_right"
+        ]
+        capsules = [ScreenObject(content=content) for _ in range(10)]
+        for i in range(10):
+            screen.place(capsules[i], adjust_map[i])
+        return capsules, ""
