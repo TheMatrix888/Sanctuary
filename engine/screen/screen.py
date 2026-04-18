@@ -1,5 +1,5 @@
 from engine.backends import WindowsScreen
-from engine.primitives import Symbol, move_cursor
+from engine.primitives import Position, Size, Symbol, move_cursor
 from engine.screen.objects import ScreenObject
 
 from sys import stdout
@@ -22,84 +22,83 @@ class Screen:
     EMPTY_SYMBOL = Symbol(" ")
 
     ALIGNMENTS = {
-        "top_left": lambda sw, sh, ow, oh: (0, 0),
-        "top": lambda sw, sh, ow, oh: ((sw - ow) // 2, 0),
-        "top_right": lambda sw, sh, ow, oh: (sw - ow, 0),
-        "left": lambda sw, sh, ow, oh: (0, (sh - oh) // 2),
-        "center": lambda sw, sh, ow, oh: ((sw - ow) // 2, (sh - oh) // 2),
-        "right": lambda sw, sh, ow, oh: (sw - ow, (sh - oh) // 2),
-        "bottom_left": lambda sw, sh, ow, oh: (0, sh - oh),
-        "bottom": lambda sw, sh, ow, oh: ((sw - ow) // 2, sh - oh),
-        "bottom_right": lambda sw, sh, ow, oh: (sw - ow, sh - oh)
+        "top_left": lambda sw, sh, ow, oh: Position(0, 0),
+        "top": lambda sw, sh, ow, oh: Position((sw - ow) // 2, 0),
+        "top_right": lambda sw, sh, ow, oh: Position(sw - ow, 0),
+        "left": lambda sw, sh, ow, oh: Position(0, (sh - oh) // 2),
+        "center": lambda sw, sh, ow, oh: Position((sw - ow) // 2, (sh - oh) // 2),
+        "right": lambda sw, sh, ow, oh: Position(sw - ow, (sh - oh) // 2),
+        "bottom_left": lambda sw, sh, ow, oh: Position(0, sh - oh),
+        "bottom": lambda sw, sh, ow, oh: Position((sw - ow) // 2, sh - oh),
+        "bottom_right": lambda sw, sh, ow, oh: Position(sw - ow, sh - oh)
     }
 
     def __init__(
             self,
-            pos: tuple[int, int],
-            columns: int,
-            lines: int
+            pos: Position,
+            size: Size
     ):
         self._screen = WindowsScreen()
         self._screen.enable_ansi()
 
         self.pos = pos
-        self.columns, self.lines = columns, lines
+        self.size = size
 
         self.buffer_old = [
-            [self.EMPTY_SYMBOL for _ in range(self.columns)]
-            for _ in range(self.lines)
+            [self.EMPTY_SYMBOL for _ in range(self.size.columns)]
+            for _ in range(self.size.lines)
         ]
 
         self.buffer_new = [
-            [self.EMPTY_SYMBOL for _ in range(self.columns)]
-            for _ in range(self.lines)
+            [self.EMPTY_SYMBOL for _ in range(self.size.columns)]
+            for _ in range(self.size.lines)
         ]
         self.move(pos)
-        self.set_size(columns, lines)
+        self.set_size(size)
 
-    def resize_buffer(self, columns: int, lines: int):
+    def resize_buffer(self, size: Size):
         def resize(buffer):
             buffer_resized = []
 
-            for y in range(lines):
+            for y in range(size.lines):
                 if y < len(buffer):
-                    line = buffer[y][:columns]
+                    line = buffer[y][:size.columns]
                 else:
                     line = []
-                padding = max(columns - len(line), 0)
+                padding = max(size.columns - len(line), 0)
                 if padding > 0:
                     line.extend(self.EMPTY_SYMBOL for _ in range(padding))
                 buffer_resized.append(line)
 
             return buffer_resized
 
-        self.columns, self.lines = columns, lines
+        self.size = size
         self.buffer_old = resize(self.buffer_old)
         self.buffer_new = resize(self.buffer_new)
 
-    def set_size(self, columns: int, lines: int):
-        self.resize_buffer(columns, lines)
-        self._screen.set_buffer_size(columns, lines)
-        self._screen.set_window_size(columns, lines)
+    def set_size(self, size: Size):
+        self.resize_buffer(size)
+        self._screen.set_buffer_size(size.columns, size.lines)
+        self._screen.set_window_size(size.columns, size.lines)
 
-    def move(self, pos: tuple[int, int]):
+    def move(self, pos: Position):
         self.pos = pos
-        self._screen.set_position_by_chars(pos, self.columns, self.lines)
+        self._screen.set_position_by_chars(self.pos.x, self.pos.y, self.size.columns, self.size.lines)
 
     def draw(self, screen_object: ScreenObject):
         content = screen_object.content
         for y in range(len(content)):
-            screen_y = y + screen_object.pos[1]
+            screen_y = y + screen_object.pos.y
             if screen_y < 0:
                 continue
-            if screen_y >= self.lines:
+            if screen_y >= self.size.lines:
                 break
             line = content[y]
             for x in range(len(line)):
-                screen_x = x + screen_object.pos[0]
+                screen_x = x + screen_object.pos.x
                 if screen_x < 0:
                     continue
-                if screen_x >= self.columns:
+                if screen_x >= self.size.columns:
                     break
                 symbol = line[x]
                 if symbol == self.EMPTY_SYMBOL:
@@ -110,8 +109,8 @@ class Screen:
         alignment = self.ALIGNMENTS.get(align_by)
         if alignment is None:
             raise Exception(f"Unsupported alignment {align_by}")
-        pos = alignment(self.columns, self.lines, screen_object.columns, screen_object.lines)
-        screen_object.move(pos)
+        pos = alignment(self.size.columns, self.size.lines, screen_object.size.columns, screen_object.size.lines)
+        screen_object.move_at(pos)
 
     def update(self):
         """
@@ -132,6 +131,6 @@ class Screen:
         Does not immediately update the screen.
         """
         self.buffer_new = [
-            [self.EMPTY_SYMBOL for _ in range(self.columns)]
-            for _ in range(self.lines)
+            [self.EMPTY_SYMBOL for _ in range(self.size.columns)]
+            for _ in range(self.size.lines)
         ]

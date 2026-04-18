@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 from typing import Callable, Any
 
+from engine.primitives import Size
 from engine.screen.objects import ScreenObject
 from app.input import InputHandler
 
 
 @dataclass(frozen=True, slots=True)
 class ScreenContext:
-    columns: int
-    lines: int
+    size: Size
     draw: Callable[[ScreenObject], None]
     place: Callable[[ScreenObject, str], None]
 

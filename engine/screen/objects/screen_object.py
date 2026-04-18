@@ -1,4 +1,4 @@
-from engine.primitives.symbol import Symbol
+from engine.primitives import Position, Size, Symbol
 
 
 class ScreenObject:
@@ -16,10 +16,11 @@ class ScreenObject:
 
     def __init__(
             self,
-            pos: tuple[int, int] | None = None,
+            pos: Position | None = None,
             content: str | list[str] | list[list[Symbol]] | None = None
     ):
         self.pos = pos
+        self.size = None
         self.content = self._normalize_content(content)
         self._recalculate()
 
@@ -43,7 +44,7 @@ class ScreenObject:
 
         raise TypeError("Unsupported content format")
 
-    def _pad_content(self, content):
+    def _pad_content(self, content: list[list[Symbol]]) -> list[list[Symbol]] | None:
         if not content:
             return None
         max_width = max(len(line) for line in content)
@@ -53,19 +54,26 @@ class ScreenObject:
         ]
         return padded_content
 
-    def _calculate_size(self):
+    def _calculate_size(self) -> Size:
         if not self.content:
-            return 0, 0
-        columns = len(self.content[0])  # As content was already padded in _normalize_content()
+            return Size(0, 0)
+        columns = len(self.content[0])  # As content was already padded in _recalculate()
         lines = len(self.content)
-        return columns, lines
+        return Size(columns, lines)
 
     def _recalculate(self):
         self.content = self._pad_content(self.content)
-        self.columns, self.lines = self._calculate_size()
+        self.size = self._calculate_size()
 
-    def move(self, pos: tuple[int, int]):
+    def move_at(self, pos: Position):
         self.pos = pos
+
+    def move_by(self, x: int, y: int):
+        self.pos.x += x
+        self.pos.y += y
+
+    def resize(self, size: Size):
+        self.size = size
 
     def set_content(self, content: str | list[str] | list[list[Symbol]]):
         self.content = self._normalize_content(content)

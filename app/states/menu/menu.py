@@ -1,5 +1,6 @@
 from .menu_item import MenuItem
 from app.core import State, NavigationContext
+from engine.primitives import pos
 from engine.screen.objects import ScreenObject
 
 
@@ -39,7 +40,7 @@ class Menu(State):
             if i == self.pointer:
                 line += "<--"
             content.append(line)
-        screen_object = ScreenObject((0, 0), content)
+        screen_object = ScreenObject(pos(0, 0), content)
         self.screen.draw(screen_object)
 
     def up(self):

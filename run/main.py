@@ -5,6 +5,7 @@ from app.input import InputHandler
 from app.core import App
 from app.factories import create_animation_factories, create_menu_factory
 
+from engine.primitives import pos, size
 from engine.screen import Screen
 
 import sys
@@ -32,7 +33,7 @@ def run_app():
     input_handler = InputHandler()
     input_handler.start()
 
-    screen = Screen((400, 400), 40, 20)
+    screen = Screen(pos(400, 400), size(40, 20))
     app = App(input_handler, screen)
 
     animation_factories = create_animation_factories()

@@ -56,13 +56,13 @@ class WindowsScreen:
 
         return font.dwFontSize.X, font.dwFontSize.Y
 
-    def set_buffer_size(self, columns, lines):
+    def set_buffer_size(self, columns: int, lines: int):
         self.kernel32.SetConsoleScreenBufferSize(
             self.handle,
             COORD(columns, lines)
         )
 
-    def set_window_size(self, columns, lines):
+    def set_window_size(self, columns: int, lines: int):
         rect = SMALL_RECT(0, 0, columns - 1, lines - 1)
 
         self.kernel32.SetConsoleWindowInfo(
@@ -71,23 +71,23 @@ class WindowsScreen:
             ctypes.byref(rect)
         )
 
-    def move(self, pos: tuple[int, int], width: int, height: int):
+    def move(self, x:int, y:int, width: int, height: int):
         self.user32.MoveWindow(
             self.hwnd,
-            pos[0],
-            pos[1],
+            x,
+            y,
             width,
             height,
             True
         )
 
-    def set_position_by_chars(self, pos:tuple[int, int], columns, lines):
+    def set_position_by_chars(self, x: int, y:int, columns, lines):
         font_width, font_height = self.get_font_size()
 
         width = columns * font_width
         height = lines * font_height
 
-        self.move(pos, width, height)
+        self.move(x, y, width, height)
 
     def clear(self):
         ctypes.windll.kernel32.FillConsoleOutputCharacterW(

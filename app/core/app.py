@@ -45,8 +45,7 @@ class App:
 
     def create_state_context(self, context_type: Type[StateContext]):
         screen_context = ScreenContext(
-            columns=self.screen.columns,
-            lines=self.screen.lines,
+            size=self.screen.size,
             draw=self.screen.draw,
             place=self.screen.place
         )
@@ -92,6 +91,6 @@ class App:
             self.status_bar.set_segment(segment_key, text)
 
     def render_status_bar(self):
-        self.status_bar.layout(self.screen.columns)
+        self.status_bar.layout(self.screen.size.columns)
         self.screen.place(self.status_bar, "bottom_left")
         self.screen.draw(self.status_bar)

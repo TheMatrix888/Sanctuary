@@ -9,7 +9,7 @@ class Animation(State):
 
     def __init__(self, context: StateContext, frame_generator: Type[FrameGenerator], duration_seconds: float):
         super().__init__(context)
-        self.columns, self.lines = self.screen.columns, self.screen.lines
+        self.size = self.screen.size
 
         self.name = type(frame_generator).__name__
         self.frame_generator = frame_generator()
@@ -21,7 +21,7 @@ class Animation(State):
         self.status = ""
 
     def on_enter(self):
-        self.columns, self.lines = self.screen.columns, self.screen.lines
+        self.size = self.screen.size
         self.frame = 0
 
     def on_exit(self):
