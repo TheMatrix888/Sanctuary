@@ -45,8 +45,6 @@ class Animation(State):
 
         self.set_status("press q/esc to exit " + animation_info)
 
-        self.screen.update()
-
         self.frame += 1
         if self.frame > self.total_frames:
             self.frame = 0

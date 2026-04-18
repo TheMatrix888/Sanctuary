@@ -39,7 +39,6 @@ class Menu(State):
             content.append(line)
         screen_object = ScreenObject((0, 0), content)
         self.screen.draw(screen_object)
-        self.screen.update()
 
     def up(self):
         self.pointer -= 1
