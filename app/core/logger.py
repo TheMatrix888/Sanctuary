@@ -10,8 +10,8 @@ def logger_init():
     logger.remove(0)
     logger.add(
         log_dir / "app.log",
-        format="{time} {level} {message}",
         level="DEBUG",
+        format="{time:DD.MM.YYYY HH:mm:ss.SS} {level} {message}",
         rotation="1 MB",
         retention="7 days"
     )
