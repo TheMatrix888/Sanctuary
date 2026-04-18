@@ -1,14 +1,14 @@
 from typing import Type
 
-from app.core import State
+from app.core import State, StateContext
 from app.states.animation.frame_generator import FrameGenerator
 
 
 class Animation(State):
     FPS = 60
 
-    def __init__(self, app, frame_generator: Type[FrameGenerator], duration_seconds: float):
-        super().__init__(app)
+    def __init__(self, context: StateContext, frame_generator: Type[FrameGenerator], duration_seconds: float):
+        super().__init__(context)
         self.columns, self.lines = self.screen.columns, self.screen.lines
 
         self.name = type(frame_generator).__name__

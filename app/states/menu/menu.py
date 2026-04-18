@@ -1,11 +1,11 @@
-from app.core import State
+from app.core import State, MenuContext
 from .menu_item import MenuItem
 from engine.screen_objects import ScreenObject
 
 
 class Menu(State):
-    def __init__(self, app, name: str, items: list[MenuItem], cycle_pointer=False):
-        super().__init__(app)
+    def __init__(self, context: MenuContext, name: str, items: list[MenuItem], cycle_pointer=False):
+        super().__init__(context)
         self.name = name
         self.pointer = 0
         self.items = items
