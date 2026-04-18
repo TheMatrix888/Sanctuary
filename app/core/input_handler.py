@@ -35,8 +35,8 @@ class InputHandler:
         if isinstance(key, keyboard.Key):
             return self.KEY_MAP.get(key)
 
-        char = getattr(key, "char", None)
-        if char:
+        if isinstance(key, keyboard.KeyCode):
+            char = chr(key.vk) # To ignore keyboard layout
             return char.lower()
 
         return None
@@ -59,8 +59,8 @@ class InputHandler:
             elif event_type == "release":
                 self.curr_keys.discard(key)
 
-    def is_pressed(self, key):
-        return key in self.curr_keys and key not in self.prev_keys
+    def is_pressed(self, key: str):
+        return key.lower() in self.curr_keys and key.lower() not in self.prev_keys
 
-    def is_held(self, key):
-        return key in self.curr_keys
+    def is_held(self, key:str):
+        return key.lower() in self.curr_keys
