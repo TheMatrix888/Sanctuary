@@ -1,7 +1,7 @@
 from typing import Type
 
 from .state import State
-from .state_context import StateContext, MenuContext
+from .contexts import StateContext, NavigationContext, ScreenContext
 from .input_handler import InputHandler
 from .factory_protocol import FactoryProtocol
 from engine.screen import Screen
@@ -30,26 +30,32 @@ class App:
             state.on_exit()
 
     def create_state_context(self, context_type: Type[StateContext]):
-        if context_type == StateContext:
-            return StateContext(
-                input_handler=self.input_handler,
-                screen=self.screen,
-                set_status=self.set_status,
-                pop_state=self.pop_state
-            )
+        screen_context = ScreenContext(
+            columns=self.screen.columns,
+            lines=self.screen.lines,
+            draw=self.screen.draw,
+            place=self.screen.place
+        )
 
-        if context_type == MenuContext:
-            return MenuContext(
-                input_handler=self.input_handler,
-                screen=self.screen,
-                set_status=self.set_status,
-                pop_state=self.pop_state,
+        base_kwargs = dict(
+            input_handler=self.input_handler,
+            screen_context=screen_context,
+            set_status=self.set_status,
+            pop_state=self.pop_state
+        )
+
+        if context_type is StateContext:
+            return StateContext(**base_kwargs)
+
+        if context_type is NavigationContext:
+            return NavigationContext(
+                **base_kwargs,
                 push_state=self.push_state,
                 push_state_factory=self.push_state_factory,
                 stop=self.stop
             )
 
-        return None
+        raise ValueError(f"Unsupported context type: {context_type}")
 
     def push_state_factory(self, factory: FactoryProtocol):
         context = self.create_state_context(factory.context_type)

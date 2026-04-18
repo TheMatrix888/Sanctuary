@@ -39,8 +39,6 @@ class Animation(State):
         progress = self.frame / self.total_frames
         screen_objects, animation_info = self.frame_generator(progress, self.columns, self.lines)
 
-        self.screen.clear()
-
         for screen_object in screen_objects:
             self.screen.draw(screen_object)
 

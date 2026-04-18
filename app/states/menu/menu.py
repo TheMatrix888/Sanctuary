@@ -1,10 +1,10 @@
-from app.core import State, MenuContext
+from app.core import State, NavigationContext
 from .menu_item import MenuItem
 from engine.screen_objects import ScreenObject
 
 
 class Menu(State):
-    def __init__(self, context: MenuContext, name: str, items: list[MenuItem], cycle_pointer=False):
+    def __init__(self, context: NavigationContext, name: str, items: list[MenuItem], cycle_pointer=False):
         super().__init__(context)
         self.name = name
         self.pointer = 0

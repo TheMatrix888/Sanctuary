@@ -1,10 +1,10 @@
 from .menu import Menu
 from .menu_item import MenuItem
-from app.core import MenuContext
+from app.core import NavigationContext
 
 
 def create_menus(animation_factories):
-    def menu_factory(context: MenuContext):
+    def menu_factory(context: NavigationContext):
         def create_demo_menu():
             return Menu(
                 context,
@@ -35,5 +35,5 @@ def create_menus(animation_factories):
 
         return main_menu
 
-    menu_factory.context_type = MenuContext
+    menu_factory.context_type = NavigationContext
     return menu_factory
