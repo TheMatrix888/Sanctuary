@@ -3,7 +3,7 @@ from loguru import logger
 
 
 def logger_init():
-    base_dir = Path(__file__).resolve().parents[2]
+    base_dir = Path(__file__).resolve().parents[1]
     log_dir = base_dir / "logs"
     log_dir.mkdir(exist_ok=True)
 
