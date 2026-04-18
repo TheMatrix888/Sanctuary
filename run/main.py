@@ -1,8 +1,10 @@
-from app.core import App, InputHandler
+from app.core import App, InputHandler, logger_init
 from app.states.animation import create_animation_factories
 from app.states.menu import create_menus
 from engine.screen import Screen
 from time import time, sleep
+
+logger_init()
 
 input_handler = InputHandler()
 input_handler.start()
