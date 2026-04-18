@@ -1,8 +1,6 @@
-from .animation import Animation
-from engine.screen_objects import ScreenObject, Text
-from .frame_generator import FrameGenerator
-from app.core import StateContext
-from ...core.contexts import ScreenContext
+from app.states.animation import Animation, FrameGenerator
+from engine.screen.objects import ScreenObject, Text
+from app.core import ScreenContext, StateContext
 
 
 def create_animation_factories():

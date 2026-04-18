@@ -1,3 +1,5 @@
 from .windows import WindowsScreen
 
-__all__ = ["WindowsScreen"]
+__all__ = [
+    "WindowsScreen"
+]

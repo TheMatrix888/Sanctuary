@@ -1,9 +1,8 @@
-from .menu import Menu
-from .menu_item import MenuItem
+from app.states.menu import Menu, MenuItem
 from app.core import NavigationContext
 
 
-def create_menus(animation_factories):
+def create_menu_factory(animation_factories):
     def menu_factory(context: NavigationContext):
         def create_demo_menu():
             return Menu(

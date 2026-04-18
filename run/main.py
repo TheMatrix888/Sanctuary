@@ -1,47 +1,69 @@
-from app.core import App, InputHandler, logger_init
-from app.states.animation import create_animation_factories
-from app.states.menu import create_menus
-from engine.screen import Screen
 from time import time, sleep
 
-logger_init()
+from run.logger import logger_init
+from app.input import InputHandler
+from app.core import App
+from app.factories import create_animation_factories, create_menu_factory
 
-input_handler = InputHandler()
-input_handler.start()
+from engine.screen import Screen
 
-screen = Screen((400, 400), 40, 20)
+import sys
+import subprocess
 
-app = App(input_handler, screen)
 
-# State creation
-animation_factories = create_animation_factories()
-menu_factory = create_menus(animation_factories)
+def run_new_console():
+    subprocess.Popen(
+        [sys.executable, "-m", "run.main", "--child"],
+        creationflags=subprocess.CREATE_NEW_CONSOLE
+    )
 
-app.push_state_factory(menu_factory)
 
-try:
-    target_ups = 60
-    update_time = 1/target_ups
-    while app.running:
-        start = time()
+def main():
+    if "--new-console" in sys.argv:
+        run_new_console()
+        return
 
-        input_handler.update()
+    run_app()
 
-        state = app.current_state
-        state.handle_input()
-        state.update()
 
-        screen.clear()
-        state.render()
-        app.render_status_bar()
-        screen.update()
+def run_app():
+    logger_init()
 
-        elapsed = time() - start
-        sleep_time = max(0.0, update_time - elapsed)
-        sleep(sleep_time)
+    input_handler = InputHandler()
+    input_handler.start()
 
-except KeyboardInterrupt:
-    app.stop()
+    screen = Screen((400, 400), 40, 20)
+    app = App(input_handler, screen)
 
-finally:
-    input_handler.stop()
+    animation_factories = create_animation_factories()
+    menu_factory = create_menu_factory(animation_factories)
+
+    app.push_state_factory(menu_factory)
+
+    try:
+        target_ups = 60
+        update_time = 1 / target_ups
+
+        while app.running:
+            start = time()
+
+            input_handler.update()
+
+            state = app.current_state
+            state.handle_input()
+            state.update()
+
+            screen.clear()
+            state.render()
+            app.render_status_bar()
+            screen.update()
+
+            elapsed = time() - start
+            sleep(max(0.0, update_time - elapsed))
+
+    finally:
+        input_handler.stop()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,7 +1,7 @@
 from typing import Type
 
+from .frame_generator import FrameGenerator
 from app.core import State, StateContext
-from app.states.animation.frame_generator import FrameGenerator
 
 
 class Animation(State):

@@ -1,6 +1,6 @@
-from app.core import State, NavigationContext
 from .menu_item import MenuItem
-from engine.screen_objects import ScreenObject
+from app.core import State, NavigationContext
+from engine.screen.objects import ScreenObject
 
 
 class Menu(State):

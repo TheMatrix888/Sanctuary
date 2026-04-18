@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable, Any
 
-from engine.screen_objects import ScreenObject
-from .input_handler import InputHandler
+from engine.screen.objects import ScreenObject
+from app.input import InputHandler
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,12 +1,22 @@
-from typing import Type
+from typing import Protocol, Type
 
-from .state import State
-from .contexts import StateContext, NavigationContext, ScreenContext
-from .input_handler import InputHandler
-from .factory_protocol import FactoryProtocol
-from engine.screen import Screen
-from engine.screen_objects import StatusBar
 from loguru import logger
+
+from app.input import InputHandler
+
+from engine.screen import Screen
+from engine.screen.objects import StatusBar
+
+from app.core.state import State
+from .contexts import NavigationContext, StateContext, ScreenContext
+
+
+class FactoryProtocol(Protocol):
+    context_type: Type[StateContext]
+
+    def __call__(self, context: StateContext) -> State:
+        ...
+
 
 class App:
     def __init__(self, input_handler: InputHandler, screen: Screen):

@@ -1,6 +1,6 @@
 from engine.backends import WindowsScreen
 from engine.primitives import Symbol, move_cursor
-from engine.screen_objects import ScreenObject
+from engine.screen.objects import ScreenObject
 
 from sys import stdout
 

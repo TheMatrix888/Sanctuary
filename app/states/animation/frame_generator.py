@@ -1,5 +1,5 @@
 from app.core.contexts import ScreenContext
-from engine.screen_objects import ScreenObject
+from engine.screen.objects import ScreenObject
 
 
 class FrameGenerator:

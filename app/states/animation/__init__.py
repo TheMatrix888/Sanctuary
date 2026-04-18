@@ -1,2 +1,7 @@
 from .animation import Animation
-from .animation_factory import create_animation_factories
+from .frame_generator import FrameGenerator
+
+__all__ = [
+    "Animation",
+    "FrameGenerator"
+]
