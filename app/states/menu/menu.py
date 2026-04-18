@@ -6,14 +6,16 @@ from engine.screen_objects import ScreenObject
 class Menu(State):
     def __init__(self, app, name: str, items: list[MenuItem], cycle_pointer=False):
         super().__init__(app)
-        self.pointer = 0
-        self.status_segment_key = "menu"
         self.name = name
+        self.pointer = 0
         self.items = items
         self.cycle_pointer = cycle_pointer
 
+        self.status_segment_key = "menu"
+        self.status = self.name
+
     def on_enter(self):
-        self.set_status(self.name)
+        pass
 
     def on_exit(self):
         self.pointer = 0
@@ -28,7 +30,7 @@ class Menu(State):
             self.select()
 
     def update(self):
-        pass
+        self.set_status(self.name)
 
     def render(self):
         content = []

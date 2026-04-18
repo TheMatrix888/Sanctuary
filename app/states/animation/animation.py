@@ -18,6 +18,7 @@ class Animation(State):
         self.frame = 0
 
         self.status_segment_key = "animation"
+        self.status = ""
 
     def on_enter(self):
         self.columns, self.lines = self.screen.columns, self.screen.lines
@@ -32,7 +33,7 @@ class Animation(State):
             self.pop_state()
 
     def update(self):
-        pass
+        self.set_status(self.status)
 
     def render(self):
         progress = self.frame / self.total_frames
@@ -43,7 +44,7 @@ class Animation(State):
         for screen_object in screen_objects:
             self.screen.draw(screen_object)
 
-        self.set_status("press q/esc to exit " + animation_info)
+        self.status = "press q/esc to exit " + animation_info
 
         self.frame += 1
         if self.frame > self.total_frames:
