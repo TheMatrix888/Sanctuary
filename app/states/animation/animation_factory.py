@@ -2,8 +2,7 @@ from .animation import Animation
 from engine.screen_objects import ScreenObject, Text
 from .frame_generator import FrameGenerator
 from app.core import StateContext
-
-FPS = 60
+from ...core.contexts import ScreenContext
 
 
 def create_animation_factories():
@@ -28,9 +27,9 @@ def create_animation_factories():
 
 
 class Demo0(FrameGenerator):
-    def __call__(self, progress: float, columns: int, lines: int):
-        x = -3 + int((columns + 4) * progress)
-        y = -3 + int((lines + 4) * progress)
+    def __call__(self, screen: ScreenContext, progress: float):
+        x = -3 + int((screen.columns + 4) * progress)
+        y = -3 + int((screen.lines + 4) * progress)
         animation_info = f"x {x}, y {y}"
         capsule = ScreenObject(
             (x, y),
@@ -43,10 +42,11 @@ class Demo0(FrameGenerator):
 
 
 class TextDemo(FrameGenerator):
-    def __call__(self, progress: float, columns: int, lines: int):
+    def __call__(self, screen: ScreenContext, progress: float):
         text = Text(
             (0, 0),
             raw_text="This is a sample text and it is much longer than number of cmd columns, but it still fits!!!\nMultiple\nLines\nCheck"
         )
-        text.layout(columns)
+        text.layout(screen.columns)
         return [text], ""
+
