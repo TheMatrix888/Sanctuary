@@ -6,7 +6,7 @@ from .input_handler import InputHandler
 from .factory_protocol import FactoryProtocol
 from engine.screen import Screen
 from engine.screen_objects import StatusBar
-
+from loguru import logger
 
 class App:
     def __init__(self, input_handler: InputHandler, screen: Screen):
@@ -15,6 +15,7 @@ class App:
         self.input_handler = input_handler
         self.screen = screen
         self.status_bar = StatusBar()
+        logger.info("App created")
 
     def push_state(self, state: State):
         current_state = self.current_state
@@ -23,11 +24,14 @@ class App:
         self.state_stack.append(state)
         state.on_enter()
 
+        logger.info(f"State pushed {current_state} -> {state}")
+
     def pop_state(self):
-        if self.state_stack:
-            state = self.state_stack.pop()
-            self.status_bar.pop_segment(state.status_segment_key)
-            state.on_exit()
+        state = self.state_stack.pop()
+        self.status_bar.pop_segment(state.status_segment_key)
+        state.on_exit()
+
+        logger.info(f"State popped {state} -> {self.current_state}")
 
     def create_state_context(self, context_type: Type[StateContext]):
         screen_context = ScreenContext(

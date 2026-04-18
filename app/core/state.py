@@ -5,6 +5,9 @@ from .contexts import StateContext
 class State(ABC):
     status_segment_key: str
 
+    def __str__(self):
+        return self.__class__.__name__
+
     def __init__(self, context: StateContext):
         self.input_handler = context.input_handler
         self.screen = context.screen_context
