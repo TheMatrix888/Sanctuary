@@ -1,5 +1,16 @@
-.idea/
-.venv/
+# Python bytecode & environments
 __pycache__/
-logs/*.log
+.venv/
+.idea/
+
+# Local state & assets
 resources/
+docs/
+
+# Build outputs (PyInstaller)
+.pyinstaller/
+.build/
+dist/
+build/
+bin/
+*.spec

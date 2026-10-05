@@ -1,0 +1,5 @@
+# Sanctuary Terminal Companion & Engine
+# Core engine operates purely on Python 3.14+ standard library & Win32 ctypes.
+
+# Hardware HID access for PS5 DualSense controllers & prototypes
+hidapi>=0.15.0
