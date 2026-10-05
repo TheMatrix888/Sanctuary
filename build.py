@@ -39,6 +39,14 @@ def build() -> int:
     # Resolve active python interpreter (venv or system)
     python_exe = sys.executable
 
+    # Collect only active runtime resources, excluding legacy images and binaries
+    data_args: list[str] = []
+    for asset_name in ("icons", "themes", "ui", "settings.json"):
+        asset_path = resources_dir / asset_name
+        if asset_path.exists():
+            dest = f"resources/{asset_name}" if asset_path.is_dir() else "resources"
+            data_args.extend(["--add-data", f"{asset_path};{dest}"])
+
     # PyInstaller execution arguments
     cmd = [
         python_exe,
@@ -54,8 +62,7 @@ def build() -> int:
         str(build_dir),
         "--specpath",
         str(output_dir),
-        "--add-data",
-        f"{resources_dir};resources",
+        *data_args,
         "--clean",
         "--onefile",
         str(main_script),
