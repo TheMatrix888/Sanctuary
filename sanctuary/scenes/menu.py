@@ -7,6 +7,7 @@ from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color, DEFAULT_BG
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import Command, Quit, Push, Pop, State
+from sanctuary.scenes.arena import Arena
 from sanctuary.scenes.box import BouncingBoxState
 from sanctuary.scenes.hammer import BouncingHammerState
 from sanctuary.scenes.snowfall.config import CALM_DRIFT_CONFIG
@@ -106,7 +107,7 @@ def create_main_menu() -> Menu:
                 MenuItem("Snowfall (5 Presets)", Push(SnowfallState(CALM_DRIFT_CONFIG))),
                 MenuItem("Bouncing Hammer", Push(BouncingHammerState())),
                 MenuItem("Bouncing Box", Push(BouncingBoxState())),
-                MenuItem("Tactical Battle [WIP]"),
+                MenuItem("Arena", Push(Arena())),
                 MenuItem("Back", Pop()),
             ],
             on_cancel=Pop(),

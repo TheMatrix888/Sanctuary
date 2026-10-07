@@ -139,7 +139,8 @@ class SnowfallState(State):
             del self.flakes[self.target_count:]
 
         self.wind = self.config.wind_func(self.time_seconds) * self.wind_multiplier
-        max_y = float(screen_size.rows - 2)
+        max_y = float(screen_size.rows - 1
+                      )
         cols = max(float(screen_size.columns), 1.0)
 
         for i, flake in enumerate(self.flakes):
