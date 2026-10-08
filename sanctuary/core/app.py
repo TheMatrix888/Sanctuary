@@ -21,6 +21,7 @@ class App:
                 self.update()
         finally:
             self.clock.close()
+            self.screen.terminal.close()
 
     def update(self) -> None:
         if not self.states:
@@ -34,6 +35,8 @@ class App:
             if not self.states:
                 return
             state = self.states[-1]
+
+        self.screen.check_resize()
 
         state.update(self.dt, self.screen.size)
 

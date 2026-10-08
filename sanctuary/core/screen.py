@@ -2,31 +2,51 @@
 Screen buffer abstraction for Sanctuary.
 Manages double-buffering, differential delta rendering, and hardware flush.
 """
+from __future__ import annotations
+
+import sanctuary.core.ansi as ansi
+from sanctuary.core.geometry import Size
 from sanctuary.core.primitives import Surface, Color, Cell, DEFAULT_FG, DEFAULT_BG
 from sanctuary.core.terminal import Terminal
 
 
 class Screen:
+    terminal: Terminal
+    size: Size
+    font_size: Size
+    back_buffer: Surface
+    front_buffer: Surface
+    last_x: int
+    last_y: int
+    last_fg: Color | None
+    last_bg: Color | None
+
     def __init__(self, terminal: Terminal) -> None:
         self.terminal = terminal
-        self.size = terminal.get_size()
+        self.reset()
+
+    def reset(self, new_size: Size | None = None) -> None:
+        """Initializes or resets double buffers and cursor state."""
+        self.size = new_size or self.terminal.get_size()
+        self.font_size = self.terminal.get_font_size()
         self.back_buffer = Surface.empty(self.size)
         self.front_buffer = Surface.empty(self.size)
         self.last_x, self.last_y = -2, -2
-        self.last_fg: Color | None = None
-        self.last_bg: Color | None = None
+        self.last_fg = None
+        self.last_bg = None
+        self.terminal.reset()
 
     def clear(self, fill_cell: Cell = Cell(" ")) -> None:
         """Clears the back buffer canvas for a new frame."""
         self.back_buffer.clear(fill_cell)
 
     def draw_text(
-        self,
-        x: int,
-        y: int,
-        text: str,
-        fg_color: Color | None = None,
-        bg_color: Color | None = None,
+            self,
+            x: int,
+            y: int,
+            text: str,
+            fg_color: Color | None = None,
+            bg_color: Color | None = None,
     ) -> None:
         if y < 0 or y >= self.size.rows:
             return
@@ -59,17 +79,15 @@ class Screen:
 
     def move_cursor(self, x: int, y: int) -> str:
         self.last_x, self.last_y = x, y
-        return f"\033[{y + 1};{x + 1}H"
+        return ansi.move_cursor(x, y)
 
     def change_fg(self, color: Color) -> str:
         self.last_fg = color
-        r, g, b = color
-        return f"\033[38;2;{r};{g};{b}m"
+        return ansi.fg_color(color)
 
     def change_bg(self, color: Color) -> str:
         self.last_bg = color
-        r, g, b = color
-        return f"\033[48;2;{r};{g};{b}m"
+        return ansi.bg_color(color)
 
     def update(self) -> None:
         buffer = ""
@@ -96,3 +114,29 @@ class Screen:
 
         if buffer:
             self.terminal.write(buffer)
+
+    def check_resize(self) -> bool:
+        """
+        Detects whether terminal grid dimensions or character font size changed,
+        or if a transition between windowed and fullscreen/maximized occurred.
+        Triggers immediate buffer reallocation and terminal state synchronization.
+        In fullscreen or maximized mode, font changes dynamically fit the grid to screen,
+        enabling true optical semantic zoom.
+        """
+        transition = self.terminal.check_fullscreen_transition()
+
+        new_font_size = self.terminal.get_font_size()
+        font_changed = (new_font_size != self.font_size)
+
+        if font_changed and self.terminal.is_fullscreen_or_maximized():
+            self.terminal.fit_to_screen()
+
+        new_size = self.terminal.get_size()
+        if new_size != self.size or font_changed or transition:
+            self.resize(new_size)
+            return True
+        return False
+
+    def resize(self, new_size: Size) -> None:
+        """Reallocates back and front buffers to match new terminal dimensions."""
+        self.reset(new_size)

@@ -19,7 +19,7 @@ def generate_arena() -> Surface:
         color_line = []
         for x in range(-X_SIZE // 2, X_SIZE // 2 + X_SIZE % 2):
             f = (x ** 2 + y ** 2 * 2 >= r ** 2) and \
-                (x % 2 == 0) and (y % 3 == 0) and \
+                (x % 2 == 0) and (y % 3 != 0) and \
                 (X_SIZE // 3 > x > -X_SIZE // 3) and (Y_SIZE // 3 > y > -Y_SIZE // 3)
             if f:
                 line += "#"
