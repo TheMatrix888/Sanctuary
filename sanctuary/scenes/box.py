@@ -1,6 +1,8 @@
 """
 Bouncing box demonstration scene with keyboard color inversion.
 """
+import random
+
 from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color, Surface, DEFAULT_BG
@@ -22,17 +24,20 @@ class BouncingBoxState(State):
     Supports inverting foreground and background colors on pressing Space.
     """
     sprite: Surface
-    trip_time_seconds: float
+    velocity_x: float
+    velocity_y: float
     base_color: Color
     x: float
     y: float
     speed_x_sign: float
     speed_y_sign: float
     is_inverted: bool
+    _initialized: bool
 
-    def __init__(self, trip_time_seconds: float = 5.0) -> None:
+    def __init__(self, velocity_x: float = 38.0, velocity_y: float = 19.0) -> None:
         self.sprite = Surface(BOX_ART)
-        self.trip_time_seconds = trip_time_seconds
+        self.velocity_x = velocity_x
+        self.velocity_y = velocity_y
         self.base_color = BOX_BASE_COLOR
         self.reset()
 
@@ -43,6 +48,7 @@ class BouncingBoxState(State):
         self.speed_x_sign = 1.0
         self.speed_y_sign = 1.0
         self.is_inverted = False
+        self._initialized = False
 
     def on_enter(self) -> None:
         self.reset()
@@ -57,14 +63,21 @@ class BouncingBoxState(State):
         return None
 
     def update(self, dt: float, screen_size: Size) -> None:
-
         max_x = max(float(screen_size.columns - self.sprite.size.columns), 1.0)
         max_y = max(float(screen_size.rows - self.sprite.size.rows - 1), 1.0)
-        speed_x = (max_x / self.trip_time_seconds) * self.speed_x_sign
-        speed_y = (max_y / self.trip_time_seconds) * self.speed_y_sign
 
-        self.x += speed_x * dt
-        self.y += speed_y * dt
+        if not self._initialized:
+            self.x = random.uniform(0.0, max_x)
+            self.y = random.uniform(0.0, max_y)
+            self.speed_x_sign = random.choice([-1.0, 1.0])
+            self.speed_y_sign = random.choice([-1.0, 1.0])
+            self._initialized = True
+        else:
+            self.x = max(0.0, min(self.x, max_x))
+            self.y = max(0.0, min(self.y, max_y))
+
+        self.x += self.velocity_x * self.speed_x_sign * dt
+        self.y += self.velocity_y * self.speed_y_sign * dt
 
         if self.x >= max_x and self.speed_x_sign > 0:
             self.x = max_x

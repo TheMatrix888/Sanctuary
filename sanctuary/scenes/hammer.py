@@ -1,6 +1,8 @@
 """
 Bouncing hammer demonstration scene with bounce color cycling and horizontal mirroring.
 """
+import random
+
 from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color, Surface, DEFAULT_BG
@@ -31,17 +33,20 @@ class BouncingHammerState(State):
     """
     sprite_left: Surface
     sprite_right: Surface
-    trip_time_seconds: float
+    velocity_x: float
+    velocity_y: float
     x: float
     y: float
     speed_x_sign: float
     speed_y_sign: float
     color_index: int
+    _initialized: bool
 
-    def __init__(self, trip_time_seconds: float = 5.0) -> None:
+    def __init__(self, velocity_x: float = 38.0, velocity_y: float = 19.0) -> None:
         self.sprite_left = Surface(HAMMER_ART)
         self.sprite_right = self.sprite_left.flip_x()
-        self.trip_time_seconds = trip_time_seconds
+        self.velocity_x = velocity_x
+        self.velocity_y = velocity_y
         self.reset()
 
     def reset(self) -> None:
@@ -51,6 +56,7 @@ class BouncingHammerState(State):
         self.speed_x_sign = 1.0
         self.speed_y_sign = 1.0
         self.color_index = 0
+        self._initialized = False
 
     def on_enter(self) -> None:
         self.reset()
@@ -67,14 +73,21 @@ class BouncingHammerState(State):
         self.color_index = (self.color_index + 1) % len(HAMMER_PALETTE)
 
     def update(self, dt: float, screen_size: Size) -> None:
-
         max_x = max(float(screen_size.columns - self.sprite_right.size.columns), 1.0)
         max_y = max(float(screen_size.rows - self.sprite_right.size.rows - 1), 1.0)
-        speed_x = (max_x / self.trip_time_seconds) * self.speed_x_sign
-        speed_y = (max_y / self.trip_time_seconds) * self.speed_y_sign
 
-        self.x += speed_x * dt
-        self.y += speed_y * dt
+        if not self._initialized:
+            self.x = random.uniform(0.0, max_x)
+            self.y = random.uniform(0.0, max_y)
+            self.speed_x_sign = random.choice([-1.0, 1.0])
+            self.speed_y_sign = random.choice([-1.0, 1.0])
+            self._initialized = True
+        else:
+            self.x = max(0.0, min(self.x, max_x))
+            self.y = max(0.0, min(self.y, max_y))
+
+        self.x += self.velocity_x * self.speed_x_sign * dt
+        self.y += self.velocity_y * self.speed_y_sign * dt
 
         bounced = False
 
