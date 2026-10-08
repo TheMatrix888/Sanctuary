@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Surface, Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import State, Command, Pop
+from sanctuary.core.state import State, Command, Pop, ToggleMetrics
 
 X_SIZE = 41
 Y_SIZE = 21
@@ -72,6 +72,8 @@ class Arena(State):
             self.player.y += 1
         if input_handler.just_pressed(Key.ESC):
             return Pop()
+        if input_handler.just_pressed(Key.F3):
+            return ToggleMetrics()
         return None
 
     def draw(self, screen: Screen) -> None:

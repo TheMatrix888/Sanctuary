@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sanctuary.core.geometry import Size
-from sanctuary.core.input_handler import InputHandler
+from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.screen import Screen
 
 
@@ -40,6 +40,12 @@ class Quit(Command):
     pass
 
 
+@dataclass(slots=True, frozen=True)
+class ToggleMetrics(Command):
+    """Toggles global runtime performance metrics and telemetry overlay."""
+    pass
+
+
 class State:
     """
     Abstract base lifecycle contract for Sanctuary states and scenes.
@@ -47,6 +53,8 @@ class State:
 
     def handle_input(self, input_handler: InputHandler) -> Command | None:
         """Processes input events and optionally dispatches a lifecycle command."""
+        if input_handler.just_pressed(Key.F3):
+            return ToggleMetrics()
         return None
 
     def update(self, dt: float, screen_size: Size) -> None:

@@ -29,6 +29,18 @@ class Key(StrEnum):
     D = "d"
     Q = "q"
     E = "e"
+    F1 = "f1"
+    F2 = "f2"
+    F3 = "f3"
+    F4 = "f4"
+    F5 = "f5"
+    F6 = "f6"
+    F7 = "f7"
+    F8 = "f8"
+    F9 = "f9"
+    F10 = "f10"
+    F11 = "f11"
+    F12 = "f12"
 
 
 class InputHandler(ABC):
@@ -93,6 +105,19 @@ class WindowsInputHandler(InputHandler):
         Key.D: ord("D"),
         Key.Q: ord("Q"),
         Key.E: ord("E"),
+        # Function keys F1 to F12 (VK_F1 = 0x70 through VK_F12 = 0x7B)
+        Key.F1: 0x70,
+        Key.F2: 0x71,
+        Key.F3: 0x72,
+        Key.F4: 0x73,
+        Key.F5: 0x74,
+        Key.F6: 0x75,
+        Key.F7: 0x76,
+        Key.F8: 0x77,
+        Key.F9: 0x78,
+        Key.F10: 0x79,
+        Key.F11: 0x7A,
+        Key.F12: 0x7B,
     }
 
     def __init__(self, terminal: WindowsTerminal) -> None:

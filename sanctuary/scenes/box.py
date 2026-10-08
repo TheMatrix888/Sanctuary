@@ -5,7 +5,7 @@ from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color, Surface, DEFAULT_BG
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import State, Command, Pop
+from sanctuary.core.state import State, Command, Pop, ToggleMetrics
 
 BOX_ART = """
 +---------------+
@@ -24,7 +24,6 @@ class BouncingBoxState(State):
     sprite: Surface
     trip_time_seconds: float
     base_color: Color
-    fps: float
     x: float
     y: float
     speed_x_sign: float
@@ -35,7 +34,6 @@ class BouncingBoxState(State):
         self.sprite = Surface(BOX_ART)
         self.trip_time_seconds = trip_time_seconds
         self.base_color = BOX_BASE_COLOR
-        self.fps = 60.0
         self.reset()
 
     def reset(self) -> None:
@@ -54,12 +52,11 @@ class BouncingBoxState(State):
             return Pop()
         if input_handler.just_pressed(Key.SPACE):
             self.is_inverted = not self.is_inverted
+        if input_handler.just_pressed(Key.F3):
+            return ToggleMetrics()
         return None
 
     def update(self, dt: float, screen_size: Size) -> None:
-        if dt > 0.0:
-            instant_fps = 1.0 / dt
-            self.fps = self.fps * 0.9 + instant_fps * 0.1
 
         max_x = max(float(screen_size.columns - self.sprite.size.columns), 1.0)
         max_y = max(float(screen_size.rows - self.sprite.size.rows - 1), 1.0)
@@ -96,8 +93,7 @@ class BouncingBoxState(State):
         status_text = (
             f" Bouncing Box | Pos: ({int(self.x):2d}, {int(self.y):2d}) "
             f"| Mode: {invert_mode_label} [Space toggle] "
-            f"| FPS: {self.fps:2.0f} "
-            f"| [Esc Back]"
+            f"| [F3 Telemetry] | [Esc Back]"
         )
         padded = status_text.ljust(screen.size.columns)[:screen.size.columns]
         screen.draw_text(

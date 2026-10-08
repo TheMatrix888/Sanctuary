@@ -8,7 +8,7 @@ from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import State, Command, Pop
+from sanctuary.core.state import State, Command, Pop, ToggleMetrics
 from sanctuary.scenes.snowfall.config import (
     SnowfallConfig,
     SnowflakeType,
@@ -42,7 +42,6 @@ class SnowfallState(State):
     wind_multiplier: float
     is_paused: bool
     time_seconds: float
-    fps: float
     preset_index: int
     flakes: list[Snowflake]
 
@@ -53,7 +52,6 @@ class SnowfallState(State):
         self.wind_multiplier = 1.0
         self.is_paused = False
         self.time_seconds = 0.0
-        self.fps = 60.0
 
         if config in ALL_SNOWFALL_PRESETS:
             self.preset_index = ALL_SNOWFALL_PRESETS.index(config)
@@ -118,12 +116,12 @@ class SnowfallState(State):
             self.config = ALL_SNOWFALL_PRESETS[self.preset_index]
             self.reset()
 
+        if input_handler.just_pressed(Key.F3):
+            return ToggleMetrics()
+
         return None
 
     def update(self, dt: float, screen_size: Size) -> None:
-        if dt > 0.0:
-            instant_fps = 1.0 / dt
-            self.fps = self.fps * 0.9 + instant_fps * 0.1
 
         if self.is_paused:
             return
@@ -170,7 +168,7 @@ class SnowfallState(State):
             f"| Flakes: {len(self.flakes)} [↑/↓] "
             f"| Wind: {self.wind_multiplier:.1f}x [←/→] "
             f"| Dir: {self.wind:.1f} {"←" if self.wind < 0 else "→"} "
-            f"| FPS: {self.fps:2.0f} "
+            f"| [F3 Telemetry] "
             f"| [Tab Preset] [Space] [Esc Back]"
         )
         padded = status_text.ljust(cols)[:cols]

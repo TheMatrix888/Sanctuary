@@ -2,9 +2,11 @@
 Application lifecycle manager for Sanctuary.
 Drives the central state stack, input polling, physics update, and differential rendering loop.
 """
+from sanctuary.core.input_handler import Key
 from sanctuary.core.platform import Platform
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Command, Push, Change, Pop, Quit, State
+from sanctuary.core.state import Command, Push, Change, Pop, Quit, State, ToggleMetrics
+from sanctuary.ui.telemetry import draw_telemetry_hud
 
 
 class App:
@@ -14,6 +16,7 @@ class App:
         self.dt = 0.0
         self.input_handler = platform.input_handler
         self.states: list[State] = []
+        self.metrics_toggle = False
 
     def run(self) -> None:
         try:
@@ -35,14 +38,20 @@ class App:
             if not self.states:
                 return
             state = self.states[-1]
+        elif self.input_handler.just_pressed(Key.F3):
+            self.toggle_metrics()
 
         self.screen.check_resize()
 
-        state.update(self.dt, self.screen.size)
+        with self.clock.measure("logic"):
+            state.update(self.dt, self.screen.size)
 
-        self.screen.clear()
-        state.draw(self.screen)
-        self.screen.update()
+        with self.clock.measure("render"):
+            self.screen.clear()
+            state.draw(self.screen)
+            if self.metrics_toggle:
+                draw_telemetry_hud(self.screen, self.clock.metrics)
+            self.screen.update()
 
         self.dt = self.clock.tick()
 
@@ -56,6 +65,8 @@ class App:
                 self.pop_state()
             case Quit():
                 self.quit()
+            case ToggleMetrics():
+                self.toggle_metrics()
 
     def push_state(self, state: State) -> None:
         self.states.append(state)
@@ -73,3 +84,6 @@ class App:
     def quit(self) -> None:
         while len(self.states) > 0:
             self.pop_state()
+
+    def toggle_metrics(self) -> None:
+        self.metrics_toggle = not self.metrics_toggle

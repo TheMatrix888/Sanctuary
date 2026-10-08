@@ -9,7 +9,7 @@ from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import State, Command, Pop
+from sanctuary.core.state import State, Command, Pop, ToggleMetrics
 
 BANNER_ART = [
     "███████╗ █████╗ ███╗   ██╗ ██████╗████████╗██╗   ██╗ █████╗ ██████╗ ██╗   ██╗",
@@ -26,14 +26,12 @@ class RainbowTextState(State):
     Demonstration state rendering a stylized Sanctuary banner and harmonic text wave demonstration scene
     with continuous TrueColor rainbow spectrum modulation.
     """
-    fps: float
     time: float
     wave_angle: float
 
     ARROWS = ("↑", "↑→", "→", "↓→", "↓", "←↓", "←", "↑←")
 
     def __init__(self, angle: float = 270.0) -> None:
-        self.fps = 60.0
         self.wave_angle = float(angle)
         self.reset()
 
@@ -52,14 +50,13 @@ class RainbowTextState(State):
             self.wave_angle = (self.wave_angle + 15.0) % 360.0
         if input_handler.just_pressed(Key.LEFT):
             self.wave_angle = (self.wave_angle - 15.0) % 360.0
+        if input_handler.just_pressed(Key.F3):
+            return ToggleMetrics()
 
         return None
 
     def update(self, dt: float, screen_size: Size) -> None:
         self.time += dt
-        if dt > 0.0:
-            instant_fps = 1.0 / dt
-            self.fps = self.fps * 0.9 + instant_fps * 0.1
 
     def draw(self, screen: Screen) -> None:
         cols = screen.size.columns
@@ -117,8 +114,7 @@ class RainbowTextState(State):
         status_text = (
             f" Rainbow TrueColor Spectrum Wave "
             f"| Angle: {self.wave_angle:3.0f}° {arrow:<2s} [←/→] "
-            f"| FPS: {self.fps:2.0f} "
-            f"| [Esc Back]"
+            f"| [F3 Telemetry] | [Esc Back]"
         )
         padded = status_text.ljust(cols)[:cols]
         screen.draw_text(

@@ -5,7 +5,7 @@ from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color, Surface, DEFAULT_BG
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import State, Command, Pop
+from sanctuary.core.state import State, Command, Pop, ToggleMetrics
 
 HAMMER_ART = """
 /-\\
@@ -32,7 +32,6 @@ class BouncingHammerState(State):
     sprite_left: Surface
     sprite_right: Surface
     trip_time_seconds: float
-    fps: float
     x: float
     y: float
     speed_x_sign: float
@@ -43,7 +42,6 @@ class BouncingHammerState(State):
         self.sprite_left = Surface(HAMMER_ART)
         self.sprite_right = self.sprite_left.flip_x()
         self.trip_time_seconds = trip_time_seconds
-        self.fps = 60.0
         self.reset()
 
     def reset(self) -> None:
@@ -60,6 +58,8 @@ class BouncingHammerState(State):
     def handle_input(self, input_handler: InputHandler) -> Command | None:
         if input_handler.just_pressed(Key.ESC):
             return Pop()
+        if input_handler.just_pressed(Key.F3):
+            return ToggleMetrics()
         return None
 
     def _on_bounce(self) -> None:
@@ -67,9 +67,6 @@ class BouncingHammerState(State):
         self.color_index = (self.color_index + 1) % len(HAMMER_PALETTE)
 
     def update(self, dt: float, screen_size: Size) -> None:
-        if dt > 0.0:
-            instant_fps = 1.0 / dt
-            self.fps = self.fps * 0.9 + instant_fps * 0.1
 
         max_x = max(float(screen_size.columns - self.sprite_right.size.columns), 1.0)
         max_y = max(float(screen_size.rows - self.sprite_right.size.rows - 1), 1.0)
@@ -114,8 +111,7 @@ class BouncingHammerState(State):
         status_text = (
             f" Bouncing Hammer | Pos: ({int(self.x):2d}, {int(self.y):2d}) {direction_label} "
             f"| Palette: [{self.color_index + 1}/{len(HAMMER_PALETTE)}] "
-            f"| FPS: {self.fps:2.0f} "
-            f"| [Esc Back]"
+            f"| [F3 Telemetry] | [Esc Back]"
         )
         padded = status_text.ljust(screen.size.columns)[:screen.size.columns]
         screen.draw_text(

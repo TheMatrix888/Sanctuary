@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color, DEFAULT_BG
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Command, Quit, Push, Pop, State
+from sanctuary.core.state import Command, Quit, Push, Pop, State, ToggleMetrics
 from sanctuary.scenes.arena import Arena
 from sanctuary.scenes.box import BouncingBoxState
 from sanctuary.scenes.hammer import BouncingHammerState
@@ -49,6 +49,9 @@ class Menu(State):
 
         if input_handler.just_pressed(Key.ESC) and self.on_cancel is not None:
             return self.on_cancel
+
+        if input_handler.just_pressed(Key.F3):
+            return ToggleMetrics()
 
         return None
 
