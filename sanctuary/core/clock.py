@@ -115,7 +115,7 @@ class Clock:
             work_ms = avg_update_ms + avg_draw_ms
             budget_ms = self.target_frame_time * 1000.0
             headroom_ms = max(0.0, budget_ms - work_ms)
-            load_percent = (work_ms / budget_ms * 100.0) if budget_ms > 0 else 0.0
+            load_percent = min(100.0, (work_ms / budget_ms * 100.0)) if budget_ms > 0 else 0.0
 
             self.metrics = FrameMetrics(
                 fps=fps,

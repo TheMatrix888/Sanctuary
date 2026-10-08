@@ -28,10 +28,11 @@ def draw_telemetry_hud(screen: Screen, metrics: FrameMetrics) -> None:
     """
     Renders a minimalist vertical telemetry panel in the bottom-left viewport corner.
     """
-    load_ratio = max(0.0, min(1.0, metrics.load_percent / 100.0))
+    clamped_load = min(100.0, max(0.0, metrics.load_percent))
+    load_ratio = clamped_load / 100.0
     panel_lines = [
         f" FPS    {metrics.fps:5.1f} ",
-        f" Load   [{render_subcell_bar(5, load_ratio)}] {int(metrics.load_percent):3d}% ",
+        f" Load   [{render_subcell_bar(5, load_ratio)}] {int(clamped_load):3d}% ",
         f" Logic  {metrics.logic_ms:5.1f} ms ",
         f" Render {metrics.render_ms:5.1f} ms ",
     ]
