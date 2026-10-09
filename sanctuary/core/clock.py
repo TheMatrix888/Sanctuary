@@ -58,7 +58,7 @@ class Clock:
     Provides standard frame pacing, delta time (dt) measurement, and smoothed FPS telemetry.
     """
 
-    def __init__(self, target_fps: float = 60.0, metrics_interval: float = 0.25) -> None:
+    def __init__(self, target_fps: float = 60.0, metrics_interval: float = 0.1) -> None:
         assert target_fps > 0, "target_fps must be positive"
         self.target_fps = target_fps
         self.target_frame_time = 1.0 / self.target_fps
