@@ -5,7 +5,7 @@ Provides mathematical architectures for colosseums, bastions, chasms, ruins, and
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from sanctuary.scenes.arena.map import ArenaMap
+from sanctuary.scenes.arena.tile_map import TileMap
 from sanctuary.scenes.arena.tiles import (
     BLOOD_FLOOR,
     CHASM,
@@ -15,7 +15,7 @@ from sanctuary.scenes.arena.tiles import (
 )
 
 
-def generate_colosseum(width: int = 41, height: int = 41) -> ArenaMap:
+def generate_colosseum(width: int = 41, height: int = 41) -> TileMap:
     """Classic colosseum: concentric colonnade pillars and central blood-stained floor."""
     half_width = width // 2
     half_height = height // 2
@@ -47,10 +47,10 @@ def generate_colosseum(width: int = 41, height: int = 41) -> ArenaMap:
                 row.append(FLOOR)
         tiles.append(row)
 
-    return ArenaMap(width=width, height=height, tiles=tiles)
+    return TileMap(width=width, height=height, tiles=tiles)
 
 
-def generate_concentric_bastions(width: int = 41, height: int = 41) -> ArenaMap:
+def generate_concentric_bastions(width: int = 41, height: int = 41) -> TileMap:
     """Concentric modular rings (radius % 4 == 0) with axial and diagonal passage gates."""
     half_width = width // 2
     half_height = height // 2
@@ -88,10 +88,10 @@ def generate_concentric_bastions(width: int = 41, height: int = 41) -> ArenaMap:
                 row.append(FLOOR)
         tiles.append(row)
 
-    return ArenaMap(width=width, height=height, tiles=tiles)
+    return TileMap(width=width, height=height, tiles=tiles)
 
 
-def generate_greek_amphitheater(width: int = 41, height: int = 41) -> ArenaMap:
+def generate_greek_amphitheater(width: int = 41, height: int = 41) -> TileMap:
     """Elliptical outer colosseum bowl with regular classical column spacing."""
     half_width = width // 2
     half_height = height // 2
@@ -124,10 +124,10 @@ def generate_greek_amphitheater(width: int = 41, height: int = 41) -> ArenaMap:
                 row.append(FLOOR)
         tiles.append(row)
 
-    return ArenaMap(width=width, height=height, tiles=tiles)
+    return TileMap(width=width, height=height, tiles=tiles)
 
 
-def generate_tectonic_chasm(width: int = 41, height: int = 41) -> ArenaMap:
+def generate_tectonic_chasm(width: int = 41, height: int = 41) -> TileMap:
     """Divided arena split by an impassable yet transparent abyss with crossing bridges."""
     half_width = width // 2
     half_height = height // 2
@@ -166,10 +166,10 @@ def generate_tectonic_chasm(width: int = 41, height: int = 41) -> ArenaMap:
                 row.append(FLOOR)
         tiles.append(row)
 
-    return ArenaMap(width=width, height=height, tiles=tiles)
+    return TileMap(width=width, height=height, tiles=tiles)
 
 
-def generate_sierpinski_ruins(width: int = 41, height: int = 41) -> ArenaMap:
+def generate_sierpinski_ruins(width: int = 41, height: int = 41) -> TileMap:
     """Deterministic mathematical labyrinth driven by modular bitwise XOR logic."""
     half_width = width // 2
     half_height = height // 2
@@ -199,10 +199,10 @@ def generate_sierpinski_ruins(width: int = 41, height: int = 41) -> ArenaMap:
                 row.append(FLOOR)
         tiles.append(row)
 
-    return ArenaMap(width=width, height=height, tiles=tiles)
+    return TileMap(width=width, height=height, tiles=tiles)
 
 
-def generate_proving_ground(width: int = 41, height: int = 41) -> ArenaMap:
+def generate_proving_ground(width: int = 41, height: int = 41) -> TileMap:
     """Clean open sparring square: outer walls and central blood ring, zero obstacles."""
     half_width = width // 2
     half_height = height // 2
@@ -229,14 +229,14 @@ def generate_proving_ground(width: int = 41, height: int = 41) -> ArenaMap:
                 row.append(FLOOR)
         tiles.append(row)
 
-    return ArenaMap(width=width, height=height, tiles=tiles)
+    return TileMap(width=width, height=height, tiles=tiles)
 
 
 @dataclass(slots=True, frozen=True)
 class ArenaPreset:
     """Declarative definition of a selectable arena generation preset."""
     name: str
-    generator: Callable[[int, int], ArenaMap]
+    generator: Callable[[int, int], TileMap]
 
 
 ARENA_PRESETS: list[ArenaPreset] = [

@@ -31,10 +31,11 @@ class BouncingBoxState(State):
     y: float
     speed_x_sign: float
     speed_y_sign: float
+    speed_multiplier: float
     is_inverted: bool
     _initialized: bool
 
-    def __init__(self, velocity_x: float = 38.0, velocity_y: float = 19.0) -> None:
+    def __init__(self, velocity_x: float = 19.0, velocity_y: float = 9.5) -> None:
         self.sprite = Surface(BOX_ART)
         self.velocity_x = velocity_x
         self.velocity_y = velocity_y
@@ -47,6 +48,7 @@ class BouncingBoxState(State):
         self.y = 0.0
         self.speed_x_sign = 1.0
         self.speed_y_sign = 1.0
+        self.speed_multiplier = 1.0
         self.is_inverted = False
         self._initialized = False
 
@@ -58,6 +60,10 @@ class BouncingBoxState(State):
             return Pop()
         if input_handler.just_pressed(Key.SPACE):
             self.is_inverted = not self.is_inverted
+        if input_handler.just_pressed(Key.LEFT) or input_handler.just_pressed(Key.A):
+            self.speed_multiplier = max(0.25, round(self.speed_multiplier - 0.25, 2))
+        if input_handler.just_pressed(Key.RIGHT) or input_handler.just_pressed(Key.D):
+            self.speed_multiplier = min(2.0, round(self.speed_multiplier + 0.25, 2))
         if input_handler.just_pressed(Key.F3):
             return ToggleMetrics()
         return None
@@ -76,8 +82,8 @@ class BouncingBoxState(State):
             self.x = max(0.0, min(self.x, max_x))
             self.y = max(0.0, min(self.y, max_y))
 
-        self.x += self.velocity_x * self.speed_x_sign * dt
-        self.y += self.velocity_y * self.speed_y_sign * dt
+        self.x += self.velocity_x * self.speed_x_sign * self.speed_multiplier * dt
+        self.y += self.velocity_y * self.speed_y_sign * self.speed_multiplier * dt
 
         if self.x >= max_x and self.speed_x_sign > 0:
             self.x = max_x
@@ -105,7 +111,8 @@ class BouncingBoxState(State):
         invert_mode_label = "[INVERTED]" if self.is_inverted else "[NORMAL]"
         status_text = (
             f" Bouncing Box | Pos: ({int(self.x):2d}, {int(self.y):2d}) "
-            f"| Mode: {invert_mode_label} [Space toggle] "
+            f"| Speed: {self.speed_multiplier:.2f}x [←/→] "
+            f"| Mode: {invert_mode_label} [Space] "
             f"| [F3 Telemetry] | [Esc Back]"
         )
         padded = status_text.ljust(screen.size.columns)[:screen.size.columns]

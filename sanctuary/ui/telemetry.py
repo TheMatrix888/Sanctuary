@@ -33,7 +33,8 @@ def draw_telemetry_hud(screen: Screen, metrics: FrameMetrics) -> None:
         f" FPS    {metrics.fps:5.1f} ",
         f" Load   [{render_subcell_bar(5, load_ratio)}] {int(metrics.load_percent):3d}% ",
         f" Logic  {metrics.logic_ms:5.1f} ms ",
-        f" Render {metrics.render_ms:5.1f} ms ",
+        f" Draw   {metrics.draw_ms:5.1f} ms ",
+        f" Flush  {metrics.flush_ms:5.1f} ms ",
     ]
 
     max_len = max(len(line) for line in panel_lines)

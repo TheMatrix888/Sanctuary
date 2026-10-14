@@ -46,12 +46,15 @@ class App:
         with self.clock.measure("logic"):
             state.update(self.dt, self.screen.size)
 
-        with self.clock.measure("render"):
+        with self.clock.measure("draw"):
             self.screen.clear()
             state.draw(self.screen)
             if self.metrics_toggle:
                 draw_telemetry_hud(self.screen, self.clock.metrics)
-            self.screen.update()
+            self.screen.compose()
+
+        with self.clock.measure("flush"):
+            self.screen.flush()
 
         self.dt = self.clock.tick()
 

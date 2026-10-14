@@ -29,10 +29,27 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         sys.exit(0)
     except Exception:
+        error_trace = traceback.format_exc()
+        try:
+            with open("crash.log", "w", encoding="utf-8") as file:
+                file.write(error_trace)
+        except Exception:
+            pass
+
         print("\n" + "=" * 50)
-        print("CRITICAL EXCEPTION:")
+        print("CRITICAL EXCEPTION (saved to crash.log):")
         print("=" * 50)
-        traceback.print_exc()
+        print(error_trace, end="")
         print("=" * 50)
-        input("\nPress enter to exit...")
+
+        try:
+            import msvcrt
+            # Drain buffered keystrokes (such as Enter pressed right before the crash)
+            while msvcrt.kbhit():
+                msvcrt.getch()
+            print("\nPress any key to exit...")
+            msvcrt.getch()
+        except ImportError:
+            input("\nPress enter to exit...")
         sys.exit(1)
+

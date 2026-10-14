@@ -39,10 +39,11 @@ class BouncingHammerState(State):
     y: float
     speed_x_sign: float
     speed_y_sign: float
+    speed_multiplier: float
     color_index: int
     _initialized: bool
 
-    def __init__(self, velocity_x: float = 38.0, velocity_y: float = 19.0) -> None:
+    def __init__(self, velocity_x: float = 19.0, velocity_y: float = 9.5) -> None:
         self.sprite_left = Surface(HAMMER_ART)
         self.sprite_right = self.sprite_left.flip_x()
         self.velocity_x = velocity_x
@@ -55,6 +56,7 @@ class BouncingHammerState(State):
         self.y = 0.0
         self.speed_x_sign = 1.0
         self.speed_y_sign = 1.0
+        self.speed_multiplier = 1.0
         self.color_index = 0
         self._initialized = False
 
@@ -64,6 +66,10 @@ class BouncingHammerState(State):
     def handle_input(self, input_handler: InputHandler) -> Command | None:
         if input_handler.just_pressed(Key.ESC):
             return Pop()
+        if input_handler.just_pressed(Key.LEFT) or input_handler.just_pressed(Key.A):
+            self.speed_multiplier = max(0.25, round(self.speed_multiplier - 0.25, 2))
+        if input_handler.just_pressed(Key.RIGHT) or input_handler.just_pressed(Key.D):
+            self.speed_multiplier = min(2.0, round(self.speed_multiplier + 0.25, 2))
         if input_handler.just_pressed(Key.F3):
             return ToggleMetrics()
         return None
@@ -86,8 +92,8 @@ class BouncingHammerState(State):
             self.x = max(0.0, min(self.x, max_x))
             self.y = max(0.0, min(self.y, max_y))
 
-        self.x += self.velocity_x * self.speed_x_sign * dt
-        self.y += self.velocity_y * self.speed_y_sign * dt
+        self.x += self.velocity_x * self.speed_x_sign * self.speed_multiplier * dt
+        self.y += self.velocity_y * self.speed_y_sign * self.speed_multiplier * dt
 
         bounced = False
 
@@ -123,6 +129,7 @@ class BouncingHammerState(State):
         direction_label = "-->" if self.speed_x_sign > 0 else "<--"
         status_text = (
             f" Bouncing Hammer | Pos: ({int(self.x):2d}, {int(self.y):2d}) {direction_label} "
+            f"| Speed: {self.speed_multiplier:.2f}x [←/→] "
             f"| Palette: [{self.color_index + 1}/{len(HAMMER_PALETTE)}] "
             f"| [F3 Telemetry] | [Esc Back]"
         )

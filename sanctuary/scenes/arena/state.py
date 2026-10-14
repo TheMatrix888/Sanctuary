@@ -1,65 +1,59 @@
 """
-Interactive tactical arena sandbox with discrete raytracing and procedural presets.
+Interactive tactical arena sandbox with discrete raytracing, procedural presets,
+and multi-resolution Texture rendering (1x1, 2x1, 4x2).
 """
-from dataclasses import dataclass
-
 from sanctuary.core.geometry import Point, Size, field_of_view
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import Command, Pop, State, ToggleMetrics
+from sanctuary.scenes.arena.entities import Entity, create_player
 from sanctuary.scenes.arena.generators import ARENA_PRESETS
-from sanctuary.scenes.arena.map import ArenaMap
-from sanctuary.scenes.arena.tiles import Tile, get_tile_render
+from sanctuary.scenes.arena.tile_map import TileMap
+from sanctuary.scenes.arena.tiles import EMPTY, Tile
 
 ARENA_WIDTH = 41
-ARENA_HEIGHT = 41
+ARENA_HEIGHT = 21
 
-
-@dataclass(slots=True)
-class Entity:
-    """Entity representation in the arena."""
-    x: int
-    y: int
-    dx: int
-    dy: int
-    view_distance: int
-    glyph: str
-    fg_color: Color | None = None
+ZOOM_SCALES: list[tuple[int, int]] = [(1, 1), (2, 1), (2, 2), (4, 2)]
 
 
 class Arena(State):
     """
     Interactive arena state supporting discrete player exploration, 360-degree FOV,
-    preset cycling (Tab), and god-view / raytracing toggle (F1).
+    preset cycling (Tab), god-view toggle (F1), and multi-LOD scaling (F2).
     """
-    arena_map: ArenaMap
+    tile_map: TileMap
     player: Entity
     visible_cells: set[Point]
     preset_index: int
+    scale_index: int
     raytracing_enabled: bool
 
     def __init__(self) -> None:
         self.preset_index = 0
+        self.scale_index = 0
         self.raytracing_enabled = True
         self.reset()
 
-    def reset(self, preset_index: int | None = None) -> None:
+    @property
+    def tile_scale(self) -> tuple[int, int]:
+        """Returns the active (width, height) cell footprint scale."""
+        return ZOOM_SCALES[self.scale_index]
+
+    def reset(self, preset_index: int = 0) -> None:
         if preset_index is not None:
             self.preset_index = preset_index % len(ARENA_PRESETS)
 
         preset = ARENA_PRESETS[self.preset_index]
-        self.arena_map = preset.generator(ARENA_WIDTH, ARENA_HEIGHT)
+        self.tile_map = preset.generator(ARENA_WIDTH, ARENA_HEIGHT)
 
-        self.player = Entity(
+        self.player = create_player(
             x=ARENA_WIDTH // 2,
             y=ARENA_HEIGHT // 2,
-            dx=0,
-            dy=0,
             view_distance=10,
-            glyph="☺",
-            fg_color=Color(128, 0, 255),
         )
+
         self.update_fov()
 
     def on_enter(self) -> None:
@@ -71,7 +65,7 @@ class Arena(State):
             self.player.x,
             self.player.y,
             self.player.view_distance,
-            self.arena_map.is_opaque,
+            self.tile_map.is_opaque,
         )
 
     def handle_input(self, input_handler: InputHandler) -> Command | None:
@@ -85,13 +79,17 @@ class Arena(State):
         if input_handler.just_pressed(Key.DOWN) or input_handler.just_pressed(Key.S):
             self.player.dy += 1
 
-        # Preset cycling (Tab)
+        # Footprint scale / zoom toggle (Tab)
         if input_handler.just_pressed(Key.TAB):
-            self.reset(self.preset_index + 1)
+            self.scale_index = (self.scale_index + 1) % len(ZOOM_SCALES)
 
         # Vision toggle (F1)
         if input_handler.just_pressed(Key.F1):
             self.raytracing_enabled = not self.raytracing_enabled
+
+        # Preset cycling (F2)
+        if input_handler.just_pressed(Key.F2):
+            self.reset(self.preset_index + 1)
 
         # Lifecycle navigation
         if input_handler.just_pressed(Key.ESC):
@@ -105,7 +103,7 @@ class Arena(State):
         if self.player.dx != 0 or self.player.dy != 0:
             target_x = self.player.x + self.player.dx
             target_y = self.player.y + self.player.dy
-            if self.arena_map.is_walkable(target_x, target_y):
+            if self.tile_map.is_walkable(target_x, target_y):
                 self.player.x = target_x
                 self.player.y = target_y
                 self.update_fov()
@@ -113,54 +111,47 @@ class Arena(State):
             self.player.dy = 0
 
     def draw(self, screen: Screen) -> None:
-        camera_offset_x = screen.size.columns // 2 - self.player.x
-        camera_offset_y = screen.size.rows // 2 - self.player.y
+        scale_w, scale_h = self.tile_scale
+        center_col = screen.size.columns // 2
+        center_row = screen.size.rows // 2
 
         if self.raytracing_enabled:
             # Raytracing mode: render only illuminated cells within circular FOV
             for point in self.visible_cells:
-                tile = self.arena_map.get_tile(point.x, point.y)
-                if tile != Tile.EMPTY:
-                    tile_glyph, tile_color = get_tile_render(tile)
-                    screen.draw_text(
-                        point.x + camera_offset_x,
-                        point.y + camera_offset_y,
-                        tile_glyph,
-                        fg_color=tile_color,
-                    )
+                tile = self.tile_map.get_tile(point.x, point.y)
+                if tile != EMPTY:
+                    screen_x = center_col + (point.x - self.player.x) * scale_w
+                    screen_y = center_row + (point.y - self.player.y) * scale_h
+                    surface = tile.texture.get_surface(self.tile_scale)
+                    screen.draw_surface(screen_x, screen_y, surface)
         else:
             # Full map view (F1 toggle / god view): render entire arena without FOV
-            for y in range(self.arena_map.height):
-                for x in range(self.arena_map.width):
-                    tile = self.arena_map.get_tile(x, y)
-                    if tile != Tile.EMPTY:
-                        tile_glyph, tile_color = get_tile_render(tile)
-                        screen.draw_text(
-                            x + camera_offset_x,
-                            y + camera_offset_y,
-                            tile_glyph,
-                            fg_color=tile_color,
-                        )
+            for y in range(self.tile_map.height):
+                for x in range(self.tile_map.width):
+                    tile = self.tile_map.get_tile(x, y)
+                    if tile != EMPTY:
+                        screen_x = center_col + (x - self.player.x) * scale_w
+                        screen_y = center_row + (y - self.player.y) * scale_h
+                        surface = tile.texture.get_surface(self.tile_scale)
+                        screen.draw_surface(screen_x, screen_y, surface)
 
         # Draw player entity in center of screen
-        screen.draw_text(
-            screen.size.columns // 2,
-            screen.size.rows // 2,
-            self.player.glyph,
-            self.player.fg_color,
-        )
+        player_surface = self.player.texture.get_surface(self.tile_scale)
+        screen.draw_surface(center_col, center_row, player_surface)
 
-        # Bottom status bar with preset and vision mode telemetry
+        # Bottom status bar with scale, vision mode, and preset telemetry
         current_preset = ARENA_PRESETS[self.preset_index]
         vision_mode = "Raytracing" if self.raytracing_enabled else "Full Map"
+        scale_label = f"{scale_w}x{scale_h}"
         status_text = (
-            f"x: {self.player.x} y: {self.player.y} | "
-            f"[Tab] Preset: {current_preset.name} | "
-            f"[F1] Vision: {vision_mode}"
+            f"x: {self.player.x:2d} y: {self.player.y:2d} | "
+            f"[Tab] Scale: {scale_label} | "
+            f"[F1] {vision_mode} | "
+            f"[F2] {current_preset.name}"
         )
         screen.draw_text(
             0,
             screen.size.rows - 1,
-            status_text.ljust(screen.size.columns),
+            status_text.ljust(screen.size.columns)[:screen.size.columns],
             bg_color=Color(48, 48, 48),
         )

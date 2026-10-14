@@ -12,7 +12,8 @@ from typing import Self
 class FrameMetrics:
     fps: float
     logic_ms: float
-    render_ms: float
+    draw_ms: float
+    flush_ms: float
     work_ms: float
     budget_ms: float
     headroom_ms: float
@@ -74,7 +75,8 @@ class Clock:
         self.metrics = FrameMetrics(
             fps=self.target_fps,
             logic_ms=0.0,
-            render_ms=0.0,
+            draw_ms=0.0,
+            flush_ms=0.0,
             work_ms=0.0,
             budget_ms=budget_ms,
             headroom_ms=budget_ms,
@@ -111,8 +113,9 @@ class Clock:
             self.fps = fps
 
             avg_update_ms = (self.phases_accumulator.get("logic", 0.0) / self._interval_frames) * 1000.0
-            avg_draw_ms = (self.phases_accumulator.get("render", 0.0) / self._interval_frames) * 1000.0
-            work_ms = avg_update_ms + avg_draw_ms
+            avg_draw_ms = (self.phases_accumulator.get("draw", 0.0) / self._interval_frames) * 1000.0
+            avg_flush_ms = (self.phases_accumulator.get("flush", 0.0) / self._interval_frames) * 1000.0
+            work_ms = avg_update_ms + avg_draw_ms + avg_flush_ms
             budget_ms = self.target_frame_time * 1000.0
             headroom_ms = max(0.0, budget_ms - work_ms)
             load_percent = min(100.0, (work_ms / budget_ms * 100.0)) if budget_ms > 0 else 0.0
@@ -120,7 +123,8 @@ class Clock:
             self.metrics = FrameMetrics(
                 fps=fps,
                 logic_ms=avg_update_ms,
-                render_ms=avg_draw_ms,
+                draw_ms=avg_draw_ms,
+                flush_ms=avg_flush_ms,
                 work_ms=work_ms,
                 budget_ms=budget_ms,
                 headroom_ms=headroom_ms,

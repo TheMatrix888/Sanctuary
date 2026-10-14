@@ -20,6 +20,7 @@ class Screen:
     last_y: int
     last_fg: Color | None
     last_bg: Color | None
+    _pending_buffer: str
 
     def __init__(self, terminal: Terminal) -> None:
         self.terminal = terminal
@@ -34,6 +35,7 @@ class Screen:
         self.last_x, self.last_y = -2, -2
         self.last_fg = None
         self.last_bg = None
+        self._pending_buffer = ""
         self.terminal.reset()
 
     def clear(self, fill_cell: Cell = Cell(" ")) -> None:
@@ -89,7 +91,11 @@ class Screen:
         self.last_bg = color
         return ansi.bg_color(color)
 
-    def update(self) -> None:
+    def compose(self) -> None:
+        """
+        Diffs back buffer against front buffer, emits minimal ANSI sequences into memory,
+        updates the front buffer, and stages the payload for hardware flush.
+        """
         buffer = ""
         for y in range(self.size.rows):
             old_line = self.front_buffer.cells[y]
@@ -112,8 +118,20 @@ class Screen:
                         buffer += new_cell.char
                         self.front_buffer.set_cell(x, y, new_cell)
 
-        if buffer:
-            self.terminal.write(buffer)
+        self._pending_buffer = buffer
+
+    def flush(self) -> None:
+        """
+        Flushes the staged ANSI buffer to the physical hardware terminal.
+        """
+        if self._pending_buffer:
+            self.terminal.write(self._pending_buffer)
+            self._pending_buffer = ""
+
+    def update(self) -> None:
+        """Composes and flushes the frame."""
+        self.compose()
+        self.flush()
 
     def check_resize(self) -> bool:
         """
