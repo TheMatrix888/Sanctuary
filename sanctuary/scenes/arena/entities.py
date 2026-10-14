@@ -4,7 +4,6 @@ Provides unified Entity dataclass with embedded multi-resolution Texture assets.
 """
 from dataclasses import dataclass
 
-from sanctuary.core.primitives import Color, Surface
 from sanctuary.scenes.arena.tiles import (
     Texture,
     RED_GLADIATOR_TEXTURE, BLUE_GLADIATOR_TEXTURE,
@@ -27,16 +26,6 @@ class Entity:
     hp: int = 100
     max_hp: int = 100
     is_player: bool = False
-
-    @property
-    def glyph(self) -> str:
-        """Returns 1x1 character glyph from the underlying texture."""
-        return self.texture.glyph_1x1.cells[0][0].char
-
-    @property
-    def fg_color(self) -> Color:
-        """Returns primary foreground color from the underlying texture."""
-        return self.texture.glyph_1x1.cells[0][0].fg_color
 
 
 def create_player(x: int, y: int, view_distance: int = 10) -> Entity:

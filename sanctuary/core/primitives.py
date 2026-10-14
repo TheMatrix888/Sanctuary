@@ -125,12 +125,6 @@ class Surface:
         if 0 <= x < self.size.columns and 0 <= y < self.size.rows:
             self.cells[y][x] = cell
 
-    def get_cell(self, x: int, y: int) -> Cell | None:
-        """Safely retrieves a cell with boundary clipping."""
-        if 0 <= x < self.size.columns and 0 <= y < self.size.rows:
-            return self.cells[y][x]
-        return None
-
     def apply_color(
         self,
         fg_color: Color | None = None,
@@ -145,28 +139,6 @@ class Surface:
                     fg_color if fg_color is not None else cell.fg_color,
                     bg_color if bg_color is not None else cell.bg_color,
                 )
-
-    def apply_color_mask(
-        self,
-        fg_color_mask: list[list[Color | None]] | None = None,
-        bg_color_mask: list[list[Color | None]] | None = None,
-    ) -> None:
-        """Applies 2D color masks to modulate cell colors."""
-        def get_color(mask: list[list[Color | None]] | None, x: int, y: int) -> Color | None:
-            if mask and 0 <= y < len(mask) and 0 <= x < len(mask[y]):
-                return mask[y][x]
-            return None
-
-        for y, row in enumerate(self.cells):
-            for x, cell in enumerate(row):
-                new_fg = get_color(fg_color_mask, x, y)
-                new_bg = get_color(bg_color_mask, x, y)
-                if new_fg is not None or new_bg is not None:
-                    row[x] = Cell(
-                        char=cell.char,
-                        fg_color=new_fg if new_fg is not None else cell.fg_color,
-                        bg_color=new_bg if new_bg is not None else cell.bg_color,
-                    )
 
     def flip_x(self, mirror_glyphs: bool = True) -> Self:
         """

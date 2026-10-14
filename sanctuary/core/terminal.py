@@ -127,9 +127,6 @@ class Terminal(Protocol):
     def check_fullscreen_transition(self) -> bool:
         ...
 
-    def snap_to_discrete_grid(self) -> bool:
-        ...
-
     def fit_to_screen(self) -> Size:
         ...
 
@@ -264,10 +261,6 @@ class VirtualTerminal:
             self._saved_windowed_cols = self.columns
             self._saved_windowed_rows = self.rows
             self._saved_windowed_font_height = self.font_height
-        return False
-
-    def snap_to_discrete_grid(self) -> bool:
-        """Simulated grid snapping (no-op in headless virtual terminal)."""
         return False
 
     def fit_to_screen(self) -> Size:
@@ -601,15 +594,6 @@ class WindowsTerminal:
             self._saved_windowed_rows = cur_size.rows
             self._saved_windowed_font_height = self.font_size_height
 
-        return False
-
-    def snap_to_discrete_grid(self) -> bool:
-        """
-        Safe helper to align window client area to character cell boundaries.
-        Bypassed in fullscreen or maximized mode.
-        """
-        if self.is_fullscreen_or_maximized() or not self.hwnd:
-            return False
         return False
 
     def get_max_size(self) -> Size:
