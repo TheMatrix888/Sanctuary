@@ -137,7 +137,7 @@ class Arena(State):
 
         # Draw player entity in center of screen
         player_surface = self.player.texture.get_surface(self.tile_scale)
-        screen.draw_surface(center_col, center_row, player_surface)
+        screen.draw_surface(center_col, center_row, player_surface, transparent_space=True)
 
         # Bottom status bar with scale, vision mode, and preset telemetry
         current_preset = ARENA_PRESETS[self.preset_index]

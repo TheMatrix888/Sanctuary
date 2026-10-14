@@ -64,7 +64,13 @@ class Screen:
                 Cell(char, fg_color, bg_color),
             )
 
-    def draw_surface(self, x: int, y: int, surface: Surface) -> None:
+    def draw_surface(
+        self,
+        x: int,
+        y: int,
+        surface: Surface,
+        transparent_space: bool = False,
+    ) -> None:
         for surface_y, line in enumerate(surface.cells):
             screen_y = surface_y + y
             if screen_y < 0:
@@ -77,6 +83,8 @@ class Screen:
                     continue
                 if screen_x >= self.size.columns:
                     break
+                if transparent_space and cell.char == " ":
+                    continue
                 self.back_buffer.set_cell(screen_x, screen_y, cell)
 
     def move_cursor(self, x: int, y: int) -> str:
