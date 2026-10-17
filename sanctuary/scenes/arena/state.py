@@ -100,7 +100,20 @@ class Arena(State):
         return None
 
     def update(self, dt: float, screen_size: Size) -> None:
-        if self.player.dx != 0 or self.player.dy != 0:
+        if self.player.dx != 0 and self.player.dy != 0:
+            # Diagonal movement attempt: enforce strict corner collision check (supercover raycasting parity).
+            # Both orthogonal intermediate steps and the target cell must be walkable to prevent diagonal clipping.
+            can_x = self.tile_map.is_walkable(self.player.x + self.player.dx, self.player.y)
+            can_y = self.tile_map.is_walkable(self.player.x, self.player.y + self.player.dy)
+            target = self.tile_map.is_walkable(self.player.x + self.player.dx, self.player.y + self.player.dy)
+
+            if can_x and can_y and target:
+                self.player.x += self.player.dx
+                self.player.y += self.player.dy
+                self.update_fov()
+            self.player.dx = 0
+            self.player.dy = 0
+        elif self.player.dx != 0 or self.player.dy != 0:
             target_x = self.player.x + self.player.dx
             target_y = self.player.y + self.player.dy
             if self.tile_map.is_walkable(target_x, target_y):
