@@ -21,9 +21,11 @@ class Screen:
     last_fg: Color | None
     last_bg: Color | None
     _pending_buffer: str
+    max_frame_bytes: int | None
 
-    def __init__(self, terminal: Terminal) -> None:
+    def __init__(self, terminal: Terminal, max_frame_bytes: int | None = 8192) -> None:
         self.terminal = terminal
+        self.max_frame_bytes = max_frame_bytes
         self.reset()
 
     def reset(self, new_size: Size | None = None) -> None:
@@ -103,8 +105,11 @@ class Screen:
         """
         Diffs back buffer against front buffer, emits minimal ANSI sequences into memory,
         updates the front buffer, and stages the payload for hardware flush.
+        Limits frame output payload to `max_frame_bytes` if configured, deferring remaining dirty cells
+        to subsequent frames to prevent terminal buffer overflows.
         """
         buffer = ""
+        budget_exhausted = False
         for y in range(self.size.rows):
             old_line = self.front_buffer.cells[y]
             new_line = self.back_buffer.cells[y]
@@ -113,18 +118,37 @@ class Screen:
                     old_cell = old_line[x]
                     new_cell = new_line[x]
                     if old_cell != new_cell:
+                        chunk = ""
+                        next_last_x, next_last_y = self.last_x, self.last_y
                         if self.last_y != y or self.last_x != x - 1:
-                            buffer += self.move_cursor(x, y)
+                            chunk += ansi.move_cursor(x, y)
+                            next_last_x, next_last_y = x, y
                         else:
-                            self.last_x = x
+                            next_last_x = x
 
+                        next_last_fg = self.last_fg
                         if self.last_fg != new_cell.fg_color:
-                            buffer += self.change_fg(new_cell.fg_color)
-                        if self.last_bg != new_cell.bg_color:
-                            buffer += self.change_bg(new_cell.bg_color)
+                            chunk += ansi.fg_color(new_cell.fg_color)
+                            next_last_fg = new_cell.fg_color
 
-                        buffer += new_cell.char
+                        next_last_bg = self.last_bg
+                        if self.last_bg != new_cell.bg_color:
+                            chunk += ansi.bg_color(new_cell.bg_color)
+                            next_last_bg = new_cell.bg_color
+
+                        chunk += new_cell.char
+
+                        if self.max_frame_bytes and buffer and (len(buffer) + len(chunk) > self.max_frame_bytes):
+                            budget_exhausted = True
+                            break
+
+                        self.last_x, self.last_y = next_last_x, next_last_y
+                        self.last_fg, self.last_bg = next_last_fg, next_last_bg
+                        buffer += chunk
                         self.front_buffer.set_cell(x, y, new_cell)
+
+            if budget_exhausted:
+                break
 
         self._pending_buffer = buffer
 
