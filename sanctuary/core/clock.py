@@ -11,6 +11,7 @@ from typing import Self
 @dataclass(slots=True, frozen=True)
 class FrameMetrics:
     fps: float
+    max_ms: float
     logic_ms: float
     draw_ms: float
     flush_ms: float
@@ -74,6 +75,7 @@ class Clock:
         budget_ms = self.target_frame_time * 1000.0
         self.metrics = FrameMetrics(
             fps=self.target_fps,
+            max_ms=budget_ms,
             logic_ms=0.0,
             draw_ms=0.0,
             flush_ms=0.0,
@@ -86,6 +88,7 @@ class Clock:
         self.phases_accumulator: dict[str, float] = {}
         self.metrics_timer = Timer(metrics_interval)
         self._interval_frames = 0
+        self._interval_max_dt = 0.0
 
     def _wait(self, time_left: float) -> None:
         """Suspends execution for the remainder of the frame. Overridden by platform subclasses."""
@@ -108,6 +111,7 @@ class Clock:
             self._next_tick = now
 
         self._interval_frames += 1
+        self._interval_max_dt = max(self._interval_max_dt, raw_dt)
         if self.metrics_timer.tick(self.dt):
             fps = self._interval_frames / self.metrics_timer.interval
             self.fps = fps
@@ -119,9 +123,11 @@ class Clock:
             budget_ms = self.target_frame_time * 1000.0
             headroom_ms = max(0.0, budget_ms - work_ms)
             load_percent = min(100.0, (work_ms / budget_ms * 100.0)) if budget_ms > 0 else 0.0
+            max_ms = self._interval_max_dt * 1000.0
 
             self.metrics = FrameMetrics(
                 fps=fps,
+                max_ms=max_ms,
                 logic_ms=avg_update_ms,
                 draw_ms=avg_draw_ms,
                 flush_ms=avg_flush_ms,
@@ -133,6 +139,7 @@ class Clock:
 
             self.phases_accumulator.clear()
             self._interval_frames = 0
+            self._interval_max_dt = 0.0
 
         return self.dt
 
