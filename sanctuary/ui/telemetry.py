@@ -26,7 +26,9 @@ def render_subcell_bar(chars: int, ratio: float) -> str:
 
 def draw_telemetry_hud(screen: Screen, metrics: FrameMetrics) -> None:
     """
-    Renders a minimalist vertical telemetry panel in the bottom-left viewport corner.
+    Renders a minimalist vertical telemetry panel in the top-right viewport corner.
+    Positioning at row 0 guarantees immediate rendering during top-to-bottom differential scans,
+    preventing HUD freezes during frame buffer saturation.
     """
     load_ratio = metrics.load_percent / 100.0
     panel_lines = [
@@ -38,10 +40,11 @@ def draw_telemetry_hud(screen: Screen, metrics: FrameMetrics) -> None:
     ]
 
     max_len = max(len(line) for line in panel_lines)
-    y_start = max(0, screen.size.rows - len(panel_lines) - 1)
+    x_start = max(0, screen.size.columns - max_len)
+    y_start = 0
     fg = Color(225, 230, 245)
     bg = Color(18, 20, 28)
 
     for offset, line in enumerate(panel_lines):
         padded_line = line.ljust(max_len)
-        screen.draw_text(0, y_start + offset, padded_line, fg_color=fg, bg_color=bg)
+        screen.draw_text(x_start, y_start + offset, padded_line, fg_color=fg, bg_color=bg)
