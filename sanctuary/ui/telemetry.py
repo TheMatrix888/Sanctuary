@@ -31,21 +31,13 @@ def draw_telemetry_hud(screen: Screen, metrics: FrameMetrics) -> None:
     preventing HUD freezes during frame buffer saturation.
     """
     load_ratio = metrics.load_percent / 100.0
-    buf_metrics = screen.buffer_metrics
-    buf_ratio = buf_metrics.load_percent / 100.0
-
-    ovf_text = f"{buf_metrics.overflow_count:5d}"
-    if buf_metrics.overflow_count > 0:
-        ovf_text = f" ! {buf_metrics.overflow_count} !"
 
     panel_items: list[tuple[str, bool]] = [
-        (f" FPS     {metrics.fps:5.1f} (max {metrics.max_ms:4.1f}ms) ", False),
-        (f" Load    [{render_subcell_bar(5, load_ratio)}] {int(metrics.load_percent):3d}% ", False),
-        (f" BufLoad [{render_subcell_bar(5, buf_ratio)}] {int(buf_metrics.load_percent):3d}% ", False),
-        (f" BufOvf  {ovf_text} ", buf_metrics.overflow_count > 0),
-        (f" Logic   {metrics.logic_ms:5.1f} ms ", False),
-        (f" Draw    {metrics.draw_ms:5.1f} ms ", False),
-        (f" Flush   {metrics.flush_ms:5.1f} ms ", False),
+        (f" FPS   {metrics.fps:5.1f} (max {metrics.max_ms:4.1f}ms) ", False),
+        (f" Load  [{render_subcell_bar(5, load_ratio)}] {int(metrics.load_percent):3d}% ", False),
+        (f" Logic {metrics.logic_ms:5.1f} ms ", False),
+        (f" Draw  {metrics.draw_ms:5.1f} ms ", False),
+        (f" Flush {metrics.flush_ms:5.1f} ms ", False),
     ]
 
     max_len = max(len(text) for text, _ in panel_items)

@@ -4,21 +4,10 @@ Manages double-buffering, differential delta rendering, and hardware flush.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-import time
-
 import sanctuary.core.ansi as ansi
 from sanctuary.core.geometry import Size
 from sanctuary.core.primitives import Surface, Color, Cell, DEFAULT_FG, DEFAULT_BG
 from sanctuary.core.terminal import Terminal
-
-
-@dataclass(slots=True, frozen=True)
-class BufferMetrics:
-    avg_bytes: int
-    max_bytes: int
-    load_percent: float
-    overflow_count: int
 
 
 class Screen:
@@ -33,11 +22,6 @@ class Screen:
     last_bg: Color | None
     _pending_chunks: list[str]
     max_frame_bytes: int | None
-    buffer_metrics: BufferMetrics
-    _interval_bytes: int
-    _interval_overflows: int
-    _interval_frames: int
-    _last_metrics_time: float
 
     def __init__(self, terminal: Terminal, max_frame_bytes: int | None = 8192) -> None:
         self.terminal = terminal
@@ -54,16 +38,6 @@ class Screen:
         self.last_fg = None
         self.last_bg = None
         self._pending_chunks = []
-        self.buffer_metrics = BufferMetrics(
-            avg_bytes=0,
-            max_bytes=self.max_frame_bytes or 0,
-            load_percent=0.0,
-            overflow_count=0,
-        )
-        self._interval_bytes = 0
-        self._interval_overflows = 0
-        self._interval_frames = 0
-        self._last_metrics_time = time.perf_counter()
         self.terminal.reset()
 
     def clear(self, fill_cell: Cell = Cell(" ")) -> None:
@@ -184,30 +158,6 @@ class Screen:
             chunks.append(current_chunk)
 
         self._pending_chunks = chunks
-
-        # Record buffer saturation and payload telemetry
-        total_frame_bytes = sum(len(c) for c in chunks)
-        multi_chunk_overflow = len(chunks) > 1
-        self._interval_bytes += total_frame_bytes
-        if multi_chunk_overflow:
-            self._interval_overflows += len(chunks) - 1
-        self._interval_frames += 1
-
-        now = time.perf_counter()
-        if now - self._last_metrics_time >= 1.0:
-            avg_b = int(self._interval_bytes / self._interval_frames) if self._interval_frames > 0 else 0
-            limit_b = self.max_frame_bytes or 8192
-            pct = min(100.0, (avg_b / limit_b * 100.0)) if limit_b > 0 else 0.0
-            self.buffer_metrics = BufferMetrics(
-                avg_bytes=avg_b,
-                max_bytes=limit_b,
-                load_percent=pct,
-                overflow_count=self._interval_overflows,
-            )
-            self._interval_bytes = 0
-            self._interval_overflows = 0
-            self._interval_frames = 0
-            self._last_metrics_time = now
 
     def flush(self) -> None:
         """
