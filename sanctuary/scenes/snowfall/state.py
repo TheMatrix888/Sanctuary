@@ -18,6 +18,11 @@ from sanctuary.scenes.snowfall.config import (
 )
 
 
+MIN_SNOWFLAKES: int = 10
+MAX_SNOWFLAKES: int = 350
+SNOWFLAKE_STEP: int = 15
+
+
 @dataclass(slots=True)
 class Snowflake:
     """Represents an active falling snowflake particle."""
@@ -47,7 +52,7 @@ class SnowfallState(State):
 
     def __init__(self, config: SnowfallConfig = CALM_DRIFT_CONFIG) -> None:
         self.config = config
-        self.target_count = config.max_snowflakes
+        self.target_count = config.base_snowflakes
         self.wind = 0.0
         self.wind_multiplier = 1.0
         self.is_paused = False
@@ -64,7 +69,7 @@ class SnowfallState(State):
         """Resets particle arrays, simulation clock, and playback multipliers to defaults."""
         self.flakes.clear()
         self.time_seconds = 0.0
-        self.target_count = self.config.max_snowflakes
+        self.target_count = self.config.base_snowflakes
         self.wind_multiplier = 1.0
         self.is_paused = False
 
@@ -100,9 +105,9 @@ class SnowfallState(State):
 
         # Adjust flake count
         if input_handler.just_pressed(Key.UP) or input_handler.just_pressed(Key.BRACKET_RIGHT):
-            self.target_count = min(self.target_count + 15, 350)
+            self.target_count = min(self.target_count + SNOWFLAKE_STEP, MAX_SNOWFLAKES)
         elif input_handler.just_pressed(Key.DOWN) or input_handler.just_pressed(Key.BRACKET_LEFT):
-            self.target_count = max(self.target_count - 15, 10)
+            self.target_count = max(self.target_count - SNOWFLAKE_STEP, MIN_SNOWFLAKES)
 
         # Modulate wind force (bounded to >= 0.0 as oscillation functions are naturally bidirectional)
         if input_handler.just_pressed(Key.RIGHT):
