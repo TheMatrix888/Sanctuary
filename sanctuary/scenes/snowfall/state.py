@@ -102,15 +102,15 @@ class SnowfallState(State):
             self.is_paused = not self.is_paused
 
         # Adjust flake count
-        if input_handler.just_pressed(Key.UP) or input_handler.just_pressed(Key.BRACKET_RIGHT):
+        if input_handler.is_repeated(Key.UP) or input_handler.is_repeated(Key.BRACKET_RIGHT):
             self.target_count = min(self.target_count + SNOWFLAKE_STEP, MAX_SNOWFLAKES)
-        elif input_handler.just_pressed(Key.DOWN) or input_handler.just_pressed(Key.BRACKET_LEFT):
+        elif input_handler.is_repeated(Key.DOWN) or input_handler.is_repeated(Key.BRACKET_LEFT):
             self.target_count = max(self.target_count - SNOWFLAKE_STEP, MIN_SNOWFLAKES)
 
         # Modulate wind force (bounded to >= 0.0 as oscillation functions are naturally bidirectional)
-        if input_handler.just_pressed(Key.RIGHT):
+        if input_handler.is_repeated(Key.RIGHT):
             self.wind_multiplier = round(min(self.wind_multiplier + 0.2, 3.0), 2)
-        elif input_handler.just_pressed(Key.LEFT):
+        elif input_handler.is_repeated(Key.LEFT):
             self.wind_multiplier = round(max(self.wind_multiplier - 0.2, 0.0), 2)
 
         # Cycle preset on Tab

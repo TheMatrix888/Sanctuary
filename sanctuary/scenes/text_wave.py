@@ -46,9 +46,9 @@ class RainbowTextState(State):
     def handle_input(self, input_handler: InputHandler) -> Command | None:
         if input_handler.just_pressed(Key.ESC):
             return Pop()
-        if input_handler.just_pressed(Key.RIGHT):
+        if input_handler.is_repeated(Key.RIGHT):
             self.wave_angle = (self.wave_angle + 15.0) % 360.0
-        if input_handler.just_pressed(Key.LEFT):
+        if input_handler.is_repeated(Key.LEFT):
             self.wave_angle = (self.wave_angle - 15.0) % 360.0
         if input_handler.just_pressed(Key.F3):
             return ToggleMetrics()

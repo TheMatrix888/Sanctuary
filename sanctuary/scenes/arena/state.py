@@ -70,13 +70,13 @@ class Arena(State):
 
     def handle_input(self, input_handler: InputHandler) -> Command | None:
         # Movement controls
-        if input_handler.just_pressed(Key.RIGHT) or input_handler.just_pressed(Key.D):
+        if input_handler.is_repeated(Key.RIGHT) or input_handler.is_repeated(Key.D):
             self.player.dx += 1
-        if input_handler.just_pressed(Key.LEFT) or input_handler.just_pressed(Key.A):
+        if input_handler.is_repeated(Key.LEFT) or input_handler.is_repeated(Key.A):
             self.player.dx -= 1
-        if input_handler.just_pressed(Key.UP) or input_handler.just_pressed(Key.W):
+        if input_handler.is_repeated(Key.UP) or input_handler.is_repeated(Key.W):
             self.player.dy -= 1
-        if input_handler.just_pressed(Key.DOWN) or input_handler.just_pressed(Key.S):
+        if input_handler.is_repeated(Key.DOWN) or input_handler.is_repeated(Key.S):
             self.player.dy += 1
 
         # Footprint scale / zoom toggle (Tab)

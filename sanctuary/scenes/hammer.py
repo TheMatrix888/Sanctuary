@@ -66,9 +66,9 @@ class BouncingHammerState(State):
     def handle_input(self, input_handler: InputHandler) -> Command | None:
         if input_handler.just_pressed(Key.ESC):
             return Pop()
-        if input_handler.just_pressed(Key.LEFT) or input_handler.just_pressed(Key.A):
+        if input_handler.is_repeated(Key.LEFT) or input_handler.is_repeated(Key.A):
             self.speed_multiplier = max(0.25, round(self.speed_multiplier - 0.25, 2))
-        if input_handler.just_pressed(Key.RIGHT) or input_handler.just_pressed(Key.D):
+        if input_handler.is_repeated(Key.RIGHT) or input_handler.is_repeated(Key.D):
             self.speed_multiplier = min(2.0, round(self.speed_multiplier + 0.25, 2))
         if input_handler.just_pressed(Key.F3):
             return ToggleMetrics()

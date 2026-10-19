@@ -4,11 +4,16 @@ Provides platform-agnostic key enumeration, discrete press detection,
 and stateful keystroke tracking.
 """
 import ctypes
+import time
 from abc import ABC, abstractmethod
 from ctypes import wintypes
 from enum import StrEnum
 
 from sanctuary.core.terminal import WindowsTerminal
+
+DEFAULT_INITIAL_DELAY: float = 0.20
+DEFAULT_REPEAT_INTERVAL: float = 0.05
+KEY_PRESSED_MASK: int = 0x8000  # Win32 GetAsyncKeyState high-order bit indicating key down
 
 
 class Key(StrEnum):
@@ -49,12 +54,28 @@ class Key(StrEnum):
 class InputHandler(ABC):
     """
     Abstract base input handler providing frame-bound key tracking and state queries.
-    Maintains current and previous frame key snapshots for idempotent lookups.
+    Maintains current, previous, and typematic repeat key snapshots for idempotent lookups.
     """
+    current_keys: set[Key]
+    previous_keys: set[Key]
+    repeated_keys: set[Key]
+    initial_delay: float
+    repeat_interval: float
+    _key_press_times: dict[Key, float]
+    _key_repeat_times: dict[Key, float]
 
-    def __init__(self) -> None:
-        self.current_keys: set[Key] = set()
-        self.previous_keys: set[Key] = set()
+    def __init__(
+        self,
+        initial_delay: float = DEFAULT_INITIAL_DELAY,
+        repeat_interval: float = DEFAULT_REPEAT_INTERVAL,
+    ) -> None:
+        self.current_keys = set()
+        self.previous_keys = set()
+        self.repeated_keys = set()
+        self.initial_delay = initial_delay
+        self.repeat_interval = repeat_interval
+        self._key_press_times = {}
+        self._key_repeat_times = {}
 
     @abstractmethod
     def update(self) -> None:
@@ -82,6 +103,44 @@ class InputHandler(ABC):
         if not normalized:
             return False
         return (normalized in self.current_keys) and (normalized not in self.previous_keys)
+
+    def is_repeated(self, key: Key | str) -> bool:
+        """
+        Returns True on the initial frame a key was pressed, and periodically
+        at `repeat_interval` cadence once held longer than `initial_delay`.
+        """
+        normalized = self._normalize_key(key)
+        return normalized in self.repeated_keys if normalized else False
+
+    def _update_typematic_repeat(self, now: float | None = None) -> None:
+        """
+        Updates the set of repeated keys for the current frame snapshot.
+        """
+        if now is None:
+            now = time.perf_counter()
+
+        self.repeated_keys.clear()
+
+        # Remove keys that are no longer held down
+        released_keys = [k for k in self._key_press_times if k not in self.current_keys]
+        for k in released_keys:
+            del self._key_press_times[k]
+            self._key_repeat_times.pop(k, None)
+
+        for key in self.current_keys:
+            if key not in self.previous_keys:
+                # Initial press: fire immediately
+                self._key_press_times[key] = now
+                self._key_repeat_times[key] = now
+                self.repeated_keys.add(key)
+            else:
+                # Held key: check typematic thresholds
+                press_time = self._key_press_times.get(key, now)
+                last_repeat = self._key_repeat_times.get(key, now)
+                if (now - press_time) >= self.initial_delay:
+                    if (now - last_repeat) >= self.repeat_interval:
+                        self._key_repeat_times[key] = now
+                        self.repeated_keys.add(key)
 
 
 class WindowsInputHandler(InputHandler):
@@ -142,11 +201,14 @@ class WindowsInputHandler(InputHandler):
 
         # Ignore input when the terminal window is not in foreground focus
         if self._user32.GetForegroundWindow() != self.terminal.hwnd:
+            self._update_typematic_repeat()
             return
 
         for key, vk_code in self.KEY_MAP.items():
-            if self._user32.GetAsyncKeyState(vk_code) & 0x8000:
+            if self._user32.GetAsyncKeyState(vk_code) & KEY_PRESSED_MASK:
                 self.current_keys.add(key)
+
+        self._update_typematic_repeat()
 
 
 class VirtualInputHandler(InputHandler):
@@ -155,8 +217,12 @@ class VirtualInputHandler(InputHandler):
     Allows programmatic simulation of key presses and releases without hardware.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(
+        self,
+        initial_delay: float = DEFAULT_INITIAL_DELAY,
+        repeat_interval: float = DEFAULT_REPEAT_INTERVAL,
+    ) -> None:
+        super().__init__(initial_delay=initial_delay, repeat_interval=repeat_interval)
         self._held_keys: set[Key] = set()
 
     def press(self, key: Key | str) -> None:
@@ -171,7 +237,8 @@ class VirtualInputHandler(InputHandler):
         if normalized:
             self._held_keys.discard(normalized)
 
-    def update(self) -> None:
+    def update(self, now: float | None = None) -> None:
         """Advances the virtual frame state, transitioning held keys to current."""
         self.previous_keys = self.current_keys.copy()
         self.current_keys = self._held_keys.copy()
+        self._update_typematic_repeat(now)

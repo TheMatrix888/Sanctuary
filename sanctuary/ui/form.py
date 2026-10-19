@@ -44,9 +44,9 @@ class FormState(State):
             return None
 
         # Vertical navigation
-        if input_handler.just_pressed(Key.UP) or input_handler.just_pressed(Key.W):
+        if input_handler.is_repeated(Key.UP) or input_handler.is_repeated(Key.W):
             self.index = (self.index - 1) % len(self.items)
-        if input_handler.just_pressed(Key.DOWN) or input_handler.just_pressed(Key.S):
+        if input_handler.is_repeated(Key.DOWN) or input_handler.is_repeated(Key.S):
             self.index = (self.index + 1) % len(self.items)
 
         current_item = self.items[self.index]
@@ -54,9 +54,9 @@ class FormState(State):
         multiplier = 10.0 if is_accelerated else 1.0
 
         # Horizontal adjustment
-        if input_handler.just_pressed(Key.LEFT) or input_handler.just_pressed(Key.A):
+        if input_handler.is_repeated(Key.LEFT) or input_handler.is_repeated(Key.A):
             current_item.on_adjust(-1, multiplier)
-        if input_handler.just_pressed(Key.RIGHT) or input_handler.just_pressed(Key.D):
+        if input_handler.is_repeated(Key.RIGHT) or input_handler.is_repeated(Key.D):
             current_item.on_adjust(1, multiplier)
 
         # Value reset to default
