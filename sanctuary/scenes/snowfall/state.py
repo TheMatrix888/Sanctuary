@@ -18,9 +18,9 @@ from sanctuary.scenes.snowfall.config import (
 )
 
 
-MIN_SNOWFLAKES: int = 10
+MIN_SNOWFLAKES: int = 20
 MAX_SNOWFLAKES: int = 1600
-SNOWFLAKE_STEP: int = 50
+SNOWFLAKE_STEP: int = 20
 
 
 @dataclass(slots=True)
@@ -52,7 +52,7 @@ class SnowfallState(State):
 
     def __init__(self, config: SnowfallConfig = CALM_DRIFT_CONFIG) -> None:
         self.config = config
-        self.target_count = config.base_snowflakes
+        self.target_count = MIN_SNOWFLAKES
         self.wind = 0.0
         self.wind_multiplier = 1.0
         self.is_paused = False
@@ -69,8 +69,6 @@ class SnowfallState(State):
         """Resets particle arrays, simulation clock, and playback multipliers to defaults."""
         self.flakes.clear()
         self.time_seconds = 0.0
-        self.target_count = self.config.base_snowflakes
-        self.wind_multiplier = 1.0
         self.is_paused = False
 
     def on_enter(self) -> None:

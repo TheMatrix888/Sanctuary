@@ -28,7 +28,6 @@ class SnowfallConfig:
     Immutable scene configuration template for snowfall simulation.
     """
     name: str
-    base_snowflakes: int
     wind_func: Callable[[float], float]
     flake_types: tuple[SnowflakeType, ...]
     sway_factor: float = 1.0
@@ -51,7 +50,6 @@ def _calm_wind(t: float) -> float:
 
 CALM_DRIFT_CONFIG = SnowfallConfig(
     name="Calm Drift",
-    base_snowflakes=80,
     wind_func=_calm_wind,
     sway_factor=0.8,
     flake_types=(
@@ -96,7 +94,6 @@ def _blizzard_wind(t: float) -> float:
 
 BLIZZARD_CONFIG = SnowfallConfig(
     name="Blizzard",
-    base_snowflakes=140,
     wind_func=_blizzard_wind,
     sway_factor=1.4,
     flake_types=(
@@ -141,7 +138,6 @@ def _squall_wind(t: float) -> float:
 
 SQUALL_CONFIG = SnowfallConfig(
     name="Squall Whirlwind",
-    base_snowflakes=110,
     wind_func=_squall_wind,
     sway_factor=1.8,
     flake_types=(
@@ -186,7 +182,6 @@ def _petersburg_wind(t: float) -> float:
 
 PETERSBURG_SLEET_CONFIG = SnowfallConfig(
     name="Petersburg Sleet",
-    base_snowflakes=110,
     wind_func=_petersburg_wind,
     sway_factor=0.9,
     flake_types=(
@@ -240,7 +235,6 @@ def _draft_wind(t: float) -> float:
 
 ORIGINAL_DRAFT_CONFIG = SnowfallConfig(
     name="Original Draft",
-    base_snowflakes=85,
     wind_func=_draft_wind,
     sway_factor=1.0,
     flake_types=(
