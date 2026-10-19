@@ -102,3 +102,17 @@ FLOOR = Tile(walkable=True, opaque=False, texture=FLOOR_TEXTURE)
 BLOOD_FLOOR = Tile(walkable=True, opaque=False, texture=BLOOD_FLOOR_TEXTURE)
 CHASM = Tile(walkable=False, opaque=False, texture=CHASM_TEXTURE)
 EMPTY = Tile(walkable=False, opaque=True, texture=FLOOR_TEXTURE)
+
+"""
+◑  ◐
+//\\\\
+
+▆▂▂▆ 
+▊ε ▊
+
+▆▂▂▆
+▊▽ ▊
+
+▆▂▂▆
+╳◠ ╳
+"""

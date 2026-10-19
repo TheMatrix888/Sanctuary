@@ -19,8 +19,8 @@ from sanctuary.scenes.snowfall.config import (
 
 
 MIN_SNOWFLAKES: int = 10
-MAX_SNOWFLAKES: int = 350
-SNOWFLAKE_STEP: int = 15
+MAX_SNOWFLAKES: int = 1600
+SNOWFLAKE_STEP: int = 50
 
 
 @dataclass(slots=True)

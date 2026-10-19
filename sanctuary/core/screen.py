@@ -31,7 +31,7 @@ class Screen:
     last_y: int
     last_fg: Color | None
     last_bg: Color | None
-    _pending_buffer: str
+    _pending_chunks: list[str]
     max_frame_bytes: int | None
     buffer_metrics: BufferMetrics
     _interval_bytes: int
@@ -53,7 +53,7 @@ class Screen:
         self.last_x, self.last_y = -2, -2
         self.last_fg = None
         self.last_bg = None
-        self._pending_buffer = ""
+        self._pending_chunks = []
         self.buffer_metrics = BufferMetrics(
             avg_bytes=0,
             max_bytes=self.max_frame_bytes or 0,
@@ -130,12 +130,13 @@ class Screen:
     def compose(self) -> None:
         """
         Diffs back buffer against front buffer, emits minimal ANSI sequences into memory,
-        updates the front buffer, and stages the payload for hardware flush.
-        Limits frame output payload to `max_frame_bytes` if configured, deferring remaining dirty cells
-        to subsequent frames to prevent terminal buffer overflows.
+        slices the stream into clean <= 8KB chunks at atomic cell boundaries, updates the front
+        buffer, and stages chunks for sequential hardware flush.
         """
-        buffer = ""
-        budget_exhausted = False
+        chunks: list[str] = []
+        current_chunk = ""
+        max_chunk = self.max_frame_bytes or 8192
+
         for y in range(self.size.rows):
             old_line = self.front_buffer.cells[y]
             new_line = self.back_buffer.cells[y]
@@ -144,44 +145,52 @@ class Screen:
                     old_cell = old_line[x]
                     new_cell = new_line[x]
                     if old_cell != new_cell:
-                        chunk = ""
+                        cell_delta = ""
                         next_last_x, next_last_y = self.last_x, self.last_y
                         if self.last_y != y or self.last_x != x - 1:
-                            chunk += ansi.move_cursor(x, y)
+                            cell_delta += ansi.move_cursor(x, y)
                             next_last_x, next_last_y = x, y
                         else:
                             next_last_x = x
 
                         next_last_fg = self.last_fg
                         if self.last_fg != new_cell.fg_color:
-                            chunk += ansi.fg_color(new_cell.fg_color)
+                            cell_delta += ansi.fg_color(new_cell.fg_color)
                             next_last_fg = new_cell.fg_color
 
                         next_last_bg = self.last_bg
                         if self.last_bg != new_cell.bg_color:
-                            chunk += ansi.bg_color(new_cell.bg_color)
+                            cell_delta += ansi.bg_color(new_cell.bg_color)
                             next_last_bg = new_cell.bg_color
 
-                        chunk += new_cell.char
+                        cell_delta += new_cell.char
 
-                        if self.max_frame_bytes and buffer and (len(buffer) + len(chunk) > self.max_frame_bytes):
-                            budget_exhausted = True
-                            break
+                        # If adding this cell would exceed the chunk size, seal the current chunk
+                        if current_chunk and (len(current_chunk) + len(cell_delta) > max_chunk):
+                            chunks.append(current_chunk)
+                            current_chunk = ""
+
+                        # If starting a fresh chunk, guarantee explicit cursor positioning
+                        if not current_chunk and (self.last_y == y and self.last_x == x - 1):
+                            cell_delta = ansi.move_cursor(x, y) + cell_delta
+                            next_last_x, next_last_y = x, y
 
                         self.last_x, self.last_y = next_last_x, next_last_y
                         self.last_fg, self.last_bg = next_last_fg, next_last_bg
-                        buffer += chunk
+                        current_chunk += cell_delta
                         self.front_buffer.set_cell(x, y, new_cell)
 
-            if budget_exhausted:
-                break
+        if current_chunk:
+            chunks.append(current_chunk)
 
-        self._pending_buffer = buffer
+        self._pending_chunks = chunks
 
         # Record buffer saturation and payload telemetry
-        self._interval_bytes += len(buffer)
-        if budget_exhausted:
-            self._interval_overflows += 1
+        total_frame_bytes = sum(len(c) for c in chunks)
+        multi_chunk_overflow = len(chunks) > 1
+        self._interval_bytes += total_frame_bytes
+        if multi_chunk_overflow:
+            self._interval_overflows += len(chunks) - 1
         self._interval_frames += 1
 
         now = time.perf_counter()
@@ -202,11 +211,11 @@ class Screen:
 
     def flush(self) -> None:
         """
-        Flushes the staged ANSI buffer to the physical hardware terminal.
+        Flushes all staged ANSI chunks to the physical hardware terminal in <= 8KB packets.
         """
-        if self._pending_buffer:
-            self.terminal.write(self._pending_buffer)
-            self._pending_buffer = ""
+        for chunk in self._pending_chunks:
+            self.terminal.write(chunk)
+        self._pending_chunks.clear()
 
     def update(self) -> None:
         """Composes and flushes the frame."""

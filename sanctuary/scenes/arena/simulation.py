@@ -18,11 +18,11 @@ class SimulationSettings:
     entities_per_team: int
     snapshots_per_second: float
     real_time_mode: bool
+    map: str
 
 
 class SimulationWorker:
-    timer : Timer
-
+    timer: Timer
 
     def __init__(self, settings: SimulationSettings) -> None:
         self.reset(settings)
@@ -30,7 +30,7 @@ class SimulationWorker:
     def reset(self, settings: SimulationSettings) -> None:
         self.timer = Timer(1 / settings.snapshots_per_second)
 
-    def run(self, ):
+    def run(self):
         pass
 
 
@@ -79,7 +79,6 @@ class ArenaSimulation(FormState):
                 precision=2,
                 suffix="fps",
             ),
-
             ChoiceKnob(
                 label="Map",
                 values=[
@@ -89,14 +88,6 @@ class ArenaSimulation(FormState):
                     "Greek Amphitheater",
                     "Tectonic Chasm",
                     "Sierpinski Ruins",
-                ],
-                index=0,
-            ),
-            ChoiceKnob(
-                label="Real time",
-                values=[
-                    "False",
-                    "True",
                 ],
                 index=0,
             ),
