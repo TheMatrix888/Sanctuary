@@ -92,25 +92,51 @@ class InputHandler(ABC):
         except ValueError:
             return None
 
-    def is_pressed(self, key: Key | str) -> bool:
-        """Returns True if the key is currently held down in this frame."""
-        normalized = self._normalize_key(key)
-        return normalized in self.current_keys if normalized else False
+    def is_pressed(self, *keys: Key | str) -> bool:
+        """Returns True if any of the specified keys is currently held down in this frame."""
+        for key in keys:
+            if isinstance(key, (list, tuple, set)):
+                for sub_key in key:
+                    normalized = self._normalize_key(sub_key)
+                    if normalized and normalized in self.current_keys:
+                        return True
+            else:
+                normalized = self._normalize_key(key)
+                if normalized and normalized in self.current_keys:
+                    return True
+        return False
 
-    def just_pressed(self, key: Key | str) -> bool:
-        """Returns True only on the initial frame the key was pressed down."""
-        normalized = self._normalize_key(key)
-        if not normalized:
-            return False
-        return (normalized in self.current_keys) and (normalized not in self.previous_keys)
+    def just_pressed(self, *keys: Key | str) -> bool:
+        """Returns True only on the initial frame any of the specified keys was pressed down."""
+        for key in keys:
+            if isinstance(key, (list, tuple, set)):
+                for sub_key in key:
+                    normalized = self._normalize_key(sub_key)
+                    if normalized and (normalized in self.current_keys) and (normalized not in self.previous_keys):
+                        return True
+            else:
+                normalized = self._normalize_key(key)
+                if normalized and (normalized in self.current_keys) and (normalized not in self.previous_keys):
+                    return True
+        return False
 
-    def is_repeated(self, key: Key | str) -> bool:
+    def is_repeated(self, *keys: Key | str) -> bool:
         """
-        Returns True on the initial frame a key was pressed, and periodically
-        at `repeat_interval` cadence once held longer than `initial_delay`.
+        Returns True on the initial frame any of the specified keys was pressed,
+        and periodically at `repeat_interval` cadence once held longer than `initial_delay`.
+        Supports passing multiple keys or a collection: is_repeated(Key.RIGHT, Key.D) or is_repeated([Key.RIGHT, Key.D]).
         """
-        normalized = self._normalize_key(key)
-        return normalized in self.repeated_keys if normalized else False
+        for key in keys:
+            if isinstance(key, (list, tuple, set)):
+                for sub_key in key:
+                    normalized = self._normalize_key(sub_key)
+                    if normalized and normalized in self.repeated_keys:
+                        return True
+            else:
+                normalized = self._normalize_key(key)
+                if normalized and normalized in self.repeated_keys:
+                    return True
+        return False
 
     def _update_typematic_repeat(self, now: float | None = None) -> None:
         """

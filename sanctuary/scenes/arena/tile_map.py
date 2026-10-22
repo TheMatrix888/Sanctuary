@@ -1,10 +1,13 @@
 """
-Discrete 2D tile map model and spatial query methods.
+Discrete 2D tile map model, spatial queries, and unified rendering.
 Universal grid representation for arenas, cities, stations, and spaceship decks.
 """
 from dataclasses import dataclass
 
-from sanctuary.scenes.arena.tiles import EMPTY, Tile
+from sanctuary.core.geometry import Point
+from sanctuary.core.screen import Screen
+
+from .tiles import EMPTY, Tile
 
 
 @dataclass(slots=True)
@@ -36,3 +39,34 @@ class TileMap:
         """Updates tile prototype at the specified discrete coordinate."""
         if 0 <= x < self.width and 0 <= y < self.height:
             self.tiles[y][x] = tile
+
+    def draw(
+        self,
+        screen: Screen,
+        origin_x: int,
+        origin_y: int,
+        scale: tuple[int, int] = (1, 1),
+        visible_cells: set[Point] | None = None,
+    ) -> None:
+        """
+        Renders the tilemap onto the screen at the given origin with footprint scaling.
+        If visible_cells is provided, renders only those illuminated coordinates (raytracing).
+        """
+        scale_w, scale_h = scale
+        if visible_cells is not None:
+            for pt in visible_cells:
+                tile = self.get_tile(pt.x, pt.y)
+                if tile != EMPTY:
+                    screen_x = origin_x + pt.x * scale_w
+                    screen_y = origin_y + pt.y * scale_h
+                    surface = tile.texture.get_surface(scale)
+                    screen.draw_surface(screen_x, screen_y, surface)
+        else:
+            for y in range(self.height):
+                for x in range(self.width):
+                    tile = self.get_tile(x, y)
+                    if tile != EMPTY:
+                        screen_x = origin_x + x * scale_w
+                        screen_y = origin_y + y * scale_h
+                        surface = tile.texture.get_surface(scale)
+                        screen.draw_surface(screen_x, screen_y, surface)

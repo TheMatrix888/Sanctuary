@@ -1,72 +1,25 @@
 """
 Arena Simulation Form State — Parameter inspector and genetic tournament configuration.
 """
+import queue
 import time
 from dataclasses import dataclass
 from multiprocessing import Process, Queue, Event
 from multiprocessing.synchronize import Event as EventType
+from random import sample
 
 from sanctuary.core.geometry import Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import Command, Pop
-from sanctuary.scenes.arena.generators import ARENA_PRESETS
-from sanctuary.scenes.arena.state import TileMap, ARENA_WIDTH, ARENA_HEIGHT, EMPTY
-from sanctuary.scenes.arena.tiles import Texture, BLOOD_FLOOR, RED_GLADIATOR_TEXTURE, BLUE_GLADIATOR_TEXTURE, FLOOR
-from sanctuary.scenes.arena.entities import Entity
 from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button, ChoiceKnob, Knob
 
-from random import randint, sample
-
-
-
-def act_move(gladiator: "Gladiator", dx: int = 0, dy: int = 0) -> bool:
-    """Moves gladiator by (dx, dy). Terminal action ending turn."""
-    gladiator.entity.x += dx
-    gladiator.entity.y += dy
-    return True
-
-
-def act_look(gladiator: "Gladiator", dx: int = 0, dy: int = 0) -> bool:
-    """Sensor: checks obstacle ahead. Non-terminal action."""
-    # If obstacle/enemy ahead — advance PC by 2, if clear — advance by 1.
-    return False
-
-
-def act_current_tile(gladiator: "Gladiator") -> int:
-    """Sensor: inspects current cell tile prototype."""
-    return 0
-
-
-class Gladiator:
-    genome: list[int]
-    genome_index: int
-    entity: Entity
-
-    def __init__(self, texture: Texture) -> None:
-        self.genome = [randint(0, 64) for _ in range(64)]
-        self.genome_index = 0
-        self.entity = Entity(
-            x=0,
-            y=0,
-            texture=texture
-        )
-
-    def turn(self) -> None:
-        gene = self.genome[self.genome_index]
-        self.genome_index = (self.genome_index + 1) % len(self.genome)
-
-
-
-
-def generate_team(gladiators: int, team: str):
-    if team == "red":
-        texture = RED_GLADIATOR_TEXTURE
-    else:
-        texture = BLUE_GLADIATOR_TEXTURE
-
-    return [Gladiator(texture) for _ in range(gladiators)]
+from .config import ARENA_HEIGHT, ARENA_WIDTH
+from .generators import ARENA_PRESETS
+from .gladiator import Gladiator, generate_team
+from .tile_map import TileMap
+from .tiles import BLOOD_FLOOR, EMPTY
 
 
 @dataclass(slots=True, frozen=True)
@@ -142,15 +95,15 @@ class SimulationWorker:
             gladiator.turn()
 
     def send_snapshot(self) -> None:
+        snapshot = Snapshot(teams=[self.red_team, self.blue_team], tilemap=self.tilemap)
+        if self.queue.full():
+            try:
+                self.queue.get_nowait()
+            except queue.Empty:
+                pass
         try:
-            if self.queue.full():
-                try:
-                    self.queue.get_nowait()
-                except Exception:
-                    pass
-            self.queue.put_nowait(Snapshot(teams=[self.red_team, self.blue_team], tilemap=self.tilemap))
-        # TODO: Replace bare 'except Exception: pass' with explicit error handling or documented non-blocking IPC rationale.
-        except Exception:
+            self.queue.put_nowait(snapshot)
+        except queue.Full:
             pass
 
     def run(self) -> None:
@@ -302,20 +255,8 @@ class ArenaSimulation(FormState):
         )
 
         if self.last_snapshot:
-            # Reused from arena.py — extract into shared TileMap renderer with scale support.
             x_start, y_start = 50, 3
-            tilemap = self.last_snapshot.tilemap
-            for y in range(tilemap.height):
-                for x in range(tilemap.width):
-                    tile = tilemap.get_tile(x, y)
-                    if tile != EMPTY:
-                        screen_x = x_start + x
-                        screen_y = y_start + y
-                        surface = tile.texture.get_surface()
-                        screen.draw_surface(screen_x, screen_y, surface)
+            self.last_snapshot.tilemap.draw(screen, x_start, y_start)
             for team in self.last_snapshot.teams:
                 for gladiator in team:
-                    screen_x = x_start + gladiator.entity.x
-                    screen_y = y_start + gladiator.entity.y
-                    surface = gladiator.entity.texture.get_surface()
-                    screen.draw_surface(screen_x, screen_y, surface)
+                    gladiator.entity.draw(screen, x_start, y_start)

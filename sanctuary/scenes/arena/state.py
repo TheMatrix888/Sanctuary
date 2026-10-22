@@ -7,13 +7,13 @@ from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import Command, Pop, State, ToggleMetrics
-from sanctuary.scenes.arena.entities import Entity, create_player
-from sanctuary.scenes.arena.generators import ARENA_PRESETS
-from sanctuary.scenes.arena.tile_map import TileMap
-from sanctuary.scenes.arena.tiles import EMPTY, Tile, ZOOM_SCALES
+from .config import ARENA_HEIGHT, ARENA_WIDTH, ZOOM_SCALES
+from .entities import Entity, create_player
+from .generators import ARENA_PRESETS
+from .tile_map import TileMap
+from .tiles import EMPTY, Tile
 
-ARENA_WIDTH = 41
-ARENA_HEIGHT = 21
+
 
 
 class Arena(State):
@@ -40,9 +40,7 @@ class Arena(State):
         return ZOOM_SCALES[self.scale_index]
 
     def reset(self, preset_index: int = 0) -> None:
-        if preset_index is not None:
-            self.preset_index = preset_index % len(ARENA_PRESETS.values())
-
+        self.preset_index = preset_index % len(ARENA_PRESETS)
         generator = list(ARENA_PRESETS.values())[self.preset_index]
         self.tilemap = generator(ARENA_WIDTH, ARENA_HEIGHT)
 
@@ -68,13 +66,13 @@ class Arena(State):
 
     def handle_input(self, input_handler: InputHandler) -> Command | None:
         # Movement controls
-        if input_handler.is_repeated(Key.RIGHT) or input_handler.is_repeated(Key.D):
+        if input_handler.is_repeated(Key.RIGHT, Key.D):
             self.player.dx += 1
-        if input_handler.is_repeated(Key.LEFT) or input_handler.is_repeated(Key.A):
+        if input_handler.is_repeated(Key.LEFT, Key.A):
             self.player.dx -= 1
-        if input_handler.is_repeated(Key.UP) or input_handler.is_repeated(Key.W):
+        if input_handler.is_repeated(Key.UP, Key.W):
             self.player.dy -= 1
-        if input_handler.is_repeated(Key.DOWN) or input_handler.is_repeated(Key.S):
+        if input_handler.is_repeated(Key.DOWN, Key.S):
             self.player.dy += 1
 
         # Footprint scale / zoom toggle (Tab)
@@ -126,29 +124,11 @@ class Arena(State):
         center_col = screen.size.columns // 2
         center_row = screen.size.rows // 2
 
-        if self.raytracing_enabled:
-            # Raytracing mode: render only illuminated cells within circular FOV
-            for point in self.visible_cells:
-                tile = self.tilemap.get_tile(point.x, point.y)
-                if tile != EMPTY:
-                    screen_x = center_col + (point.x - self.player.x) * scale_w
-                    screen_y = center_row + (point.y - self.player.y) * scale_h
-                    surface = tile.texture.get_surface(self.tile_scale)
-                    screen.draw_surface(screen_x, screen_y, surface)
-        else:
-            # Full map view (F1 toggle / god view): render entire arena without FOV
-            for y in range(self.tilemap.height):
-                for x in range(self.tilemap.width):
-                    tile = self.tilemap.get_tile(x, y)
-                    if tile != EMPTY:
-                        screen_x = center_col + (x - self.player.x) * scale_w
-                        screen_y = center_row + (y - self.player.y) * scale_h
-                        surface = tile.texture.get_surface(self.tile_scale)
-                        screen.draw_surface(screen_x, screen_y, surface)
-
-        # Draw player entity in center of screen
-        player_surface = self.player.texture.get_surface(self.tile_scale)
-        screen.draw_surface(center_col, center_row, player_surface, transparent_space=True)
+        origin_x = center_col - self.player.x * scale_w
+        origin_y = center_row - self.player.y * scale_h
+        visible = self.visible_cells if self.raytracing_enabled else None
+        self.tilemap.draw(screen, origin_x, origin_y, scale=self.tile_scale, visible_cells=visible)
+        self.player.draw(screen, origin_x, origin_y, scale=self.tile_scale, transparent_space=True)
 
         # Bottom status bar with scale, vision mode, and preset telemetry
         vision_mode = "Raytracing" if self.raytracing_enabled else "Full Map"
