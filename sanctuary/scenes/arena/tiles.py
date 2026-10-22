@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from sanctuary.core.primitives import Cell, Color, Surface
 
+ZOOM_SCALES: list[tuple[int, int]] = [(1, 1), (2, 1), (2, 2), (4, 2)]
 
 @dataclass(slots=True, frozen=True)
 class Texture:
@@ -86,11 +87,25 @@ RED_GLADIATOR_TEXTURE = Texture(
     glyph_4x2=Surface("o_o]\n/||\\", fg_color=Color(255, 0, 0)),
 )
 
+DEAD_RED_GLADIATOR_TEXTURE = Texture(
+    glyph_1x1=Surface("%", fg_color=Color(255, 0, 0)),
+    glyph_2x1=Surface("% ", fg_color=Color(255, 0, 0)),
+    glyph_2x2=Surface("% \n/\\", fg_color=Color(255, 0, 0)),
+    glyph_4x2=Surface("x_x]\n/||\\", fg_color=Color(255, 0, 0)),
+)
+
 BLUE_GLADIATOR_TEXTURE = Texture(
     glyph_1x1=Surface("☺", fg_color=Color(0, 0, 255)),
     glyph_2x1=Surface("☺ ", fg_color=Color(0, 0, 255)),
     glyph_2x2=Surface("☺ \n/\\", fg_color=Color(0, 0, 255)),
     glyph_4x2=Surface("o_o]\n/||\\", fg_color=Color(0, 0, 255)),
+)
+
+DEAD_BLUE_GLADIATOR_TEXTURE = Texture(
+    glyph_1x1=Surface("%", fg_color=Color(0, 0, 255)),
+    glyph_2x1=Surface("% ", fg_color=Color(0, 0, 255)),
+    glyph_2x2=Surface("% \n/\\", fg_color=Color(0, 0, 255)),
+    glyph_4x2=Surface("x_x]\n/||\\", fg_color=Color(0, 0, 255)),
 )
 
 # =============================================================================
@@ -115,4 +130,10 @@ EMPTY = Tile(walkable=False, opaque=True, texture=FLOOR_TEXTURE)
 
 ▆▂▂▆
 ╳◠ ╳
+
+◭▽ ◮
+┑__┎
+
+◭▽ ◮
+┑◟◞┎
 """

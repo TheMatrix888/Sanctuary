@@ -34,7 +34,7 @@ def create_main_menu() -> FormState:
             title="Arena menu",
             items=[
                 Button("Arena", Push(Arena())),
-                Button("Arena simulation [WIP]", Push(ArenaSimulation())),
+                Button("Arena simulation", Push(ArenaSimulation())),
             ],
             on_cancel=Pop(),
         )

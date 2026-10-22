@@ -25,7 +25,6 @@ class Entity:
     dy: int = 0
     hp: int = 100
     max_hp: int = 100
-    is_player: bool = False
 
 
 def create_player(x: int, y: int, view_distance: int = 10) -> Entity:
@@ -34,27 +33,21 @@ def create_player(x: int, y: int, view_distance: int = 10) -> Entity:
         x=x,
         y=y,
         texture=PLAYER_TEXTURE,
-        view_distance=view_distance,
-        is_player=True,
+        view_distance=view_distance
     )
 
 
 def create_gladiator(
         x: int,
         y: int,
-        team: str = "red",
+        texture: Texture,
         view_distance: int = 8,
 ) -> Entity:
     """Factory creating an AI gladiator entity."""
-    if team == "red":
-        texture = RED_GLADIATOR_TEXTURE
-    else:
-        texture = BLUE_GLADIATOR_TEXTURE
 
     return Entity(
         x=x,
         y=y,
         texture=texture,
-        view_distance=view_distance,
-        is_player=False,
+        view_distance=view_distance
     )

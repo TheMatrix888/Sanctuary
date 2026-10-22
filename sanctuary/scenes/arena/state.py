@@ -10,12 +10,10 @@ from sanctuary.core.state import Command, Pop, State, ToggleMetrics
 from sanctuary.scenes.arena.entities import Entity, create_player
 from sanctuary.scenes.arena.generators import ARENA_PRESETS
 from sanctuary.scenes.arena.tile_map import TileMap
-from sanctuary.scenes.arena.tiles import EMPTY, Tile
+from sanctuary.scenes.arena.tiles import EMPTY, Tile, ZOOM_SCALES
 
 ARENA_WIDTH = 41
 ARENA_HEIGHT = 21
-
-ZOOM_SCALES: list[tuple[int, int]] = [(1, 1), (2, 1), (2, 2), (4, 2)]
 
 
 class Arena(State):
@@ -23,7 +21,7 @@ class Arena(State):
     Interactive arena state supporting discrete player exploration, 360-degree FOV,
     preset cycling (Tab), god-view toggle (F1), and multi-LOD scaling (F2).
     """
-    tile_map: TileMap
+    tilemap: TileMap
     player: Entity
     visible_cells: set[Point]
     preset_index: int
@@ -43,10 +41,10 @@ class Arena(State):
 
     def reset(self, preset_index: int = 0) -> None:
         if preset_index is not None:
-            self.preset_index = preset_index % len(ARENA_PRESETS)
+            self.preset_index = preset_index % len(ARENA_PRESETS.values())
 
-        preset = ARENA_PRESETS[self.preset_index]
-        self.tile_map = preset.generator(ARENA_WIDTH, ARENA_HEIGHT)
+        generator = list(ARENA_PRESETS.values())[self.preset_index]
+        self.tilemap = generator(ARENA_WIDTH, ARENA_HEIGHT)
 
         self.player = create_player(
             x=ARENA_WIDTH // 2,
@@ -65,7 +63,7 @@ class Arena(State):
             self.player.x,
             self.player.y,
             self.player.view_distance,
-            self.tile_map.is_opaque,
+            self.tilemap.is_opaque,
         )
 
     def handle_input(self, input_handler: InputHandler) -> Command | None:
@@ -103,9 +101,9 @@ class Arena(State):
         if self.player.dx != 0 and self.player.dy != 0:
             # Diagonal movement attempt: enforce strict corner collision check (supercover raycasting parity).
             # Both orthogonal intermediate steps and the target cell must be walkable to prevent diagonal clipping.
-            can_x = self.tile_map.is_walkable(self.player.x + self.player.dx, self.player.y)
-            can_y = self.tile_map.is_walkable(self.player.x, self.player.y + self.player.dy)
-            target = self.tile_map.is_walkable(self.player.x + self.player.dx, self.player.y + self.player.dy)
+            can_x = self.tilemap.is_walkable(self.player.x + self.player.dx, self.player.y)
+            can_y = self.tilemap.is_walkable(self.player.x, self.player.y + self.player.dy)
+            target = self.tilemap.is_walkable(self.player.x + self.player.dx, self.player.y + self.player.dy)
 
             if can_x and can_y and target:
                 self.player.x += self.player.dx
@@ -116,7 +114,7 @@ class Arena(State):
         elif self.player.dx != 0 or self.player.dy != 0:
             target_x = self.player.x + self.player.dx
             target_y = self.player.y + self.player.dy
-            if self.tile_map.is_walkable(target_x, target_y):
+            if self.tilemap.is_walkable(target_x, target_y):
                 self.player.x = target_x
                 self.player.y = target_y
                 self.update_fov()
@@ -131,7 +129,7 @@ class Arena(State):
         if self.raytracing_enabled:
             # Raytracing mode: render only illuminated cells within circular FOV
             for point in self.visible_cells:
-                tile = self.tile_map.get_tile(point.x, point.y)
+                tile = self.tilemap.get_tile(point.x, point.y)
                 if tile != EMPTY:
                     screen_x = center_col + (point.x - self.player.x) * scale_w
                     screen_y = center_row + (point.y - self.player.y) * scale_h
@@ -139,9 +137,9 @@ class Arena(State):
                     screen.draw_surface(screen_x, screen_y, surface)
         else:
             # Full map view (F1 toggle / god view): render entire arena without FOV
-            for y in range(self.tile_map.height):
-                for x in range(self.tile_map.width):
-                    tile = self.tile_map.get_tile(x, y)
+            for y in range(self.tilemap.height):
+                for x in range(self.tilemap.width):
+                    tile = self.tilemap.get_tile(x, y)
                     if tile != EMPTY:
                         screen_x = center_col + (x - self.player.x) * scale_w
                         screen_y = center_row + (y - self.player.y) * scale_h
@@ -153,14 +151,13 @@ class Arena(State):
         screen.draw_surface(center_col, center_row, player_surface, transparent_space=True)
 
         # Bottom status bar with scale, vision mode, and preset telemetry
-        current_preset = ARENA_PRESETS[self.preset_index]
         vision_mode = "Raytracing" if self.raytracing_enabled else "Full Map"
         scale_label = f"{scale_w}x{scale_h}"
         status_text = (
             f"x: {self.player.x:2d} y: {self.player.y:2d} | "
             f"[Tab] Scale: {scale_label} | "
             f"[F1] {vision_mode} | "
-            f"[F2] {current_preset.name}"
+            f"[F2] change preset"
         )
         screen.draw_text(
             0,

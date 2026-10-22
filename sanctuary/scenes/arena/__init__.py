@@ -8,7 +8,6 @@ from sanctuary.scenes.arena.entities import (
 )
 from sanctuary.scenes.arena.generators import (
     ARENA_PRESETS,
-    ArenaPreset,
     generate_colosseum,
     generate_concentric_bastions,
     generate_greek_amphitheater,
@@ -46,7 +45,6 @@ __all__ = [
     "ARENA_WIDTH",
     "ARENA_PRESETS",
     "Arena",
-    "ArenaPreset",
     "ArenaSimulation",
     "BLOOD_FLOOR",
     "BLOOD_FLOOR_TEXTURE",
