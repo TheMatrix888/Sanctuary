@@ -12,9 +12,11 @@ from sanctuary.core.state import Command, Pop
 from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button, ChoiceKnob, Knob
 
+from .config import ARENA_HEIGHT, ARENA_WIDTH
+from .generators import ARENA_PRESETS
+from .tile_map import TileMap
 from .worker import (
     SimulationSettings,
-    SimulationWorker,
     Snapshot,
     run_simulation_worker,
 )
@@ -35,6 +37,9 @@ class ArenaSimulation(FormState):
     queue: Queue
     stop_event: EventType
     last_snapshot: Snapshot | None
+    current_map: str
+    map_preview: TileMap
+
 
     def __init__(self) -> None:
         self.is_running = False
@@ -112,6 +117,12 @@ class ArenaSimulation(FormState):
             on_cancel=Pop(),
         )
 
+        self.update_map_preview()
+
+    def update_map_preview(self) -> None:
+        self.current_map = self.map_knob.current_value
+        self.map_preview = ARENA_PRESETS[self.current_map](ARENA_WIDTH, ARENA_HEIGHT)
+
     def gather_settings(self) -> SimulationSettings:
         """Extracts configuration settings from UI widget state."""
         return SimulationSettings(
@@ -149,6 +160,9 @@ class ArenaSimulation(FormState):
         if not self.queue.empty():
             self.last_snapshot = self.queue.get()
 
+        if self.current_map != self.map_knob.current_value:
+            self.update_map_preview()
+
     def draw(self, screen: Screen) -> None:
         super().draw(screen)
 
@@ -168,9 +182,9 @@ class ArenaSimulation(FormState):
             fg_color=status_fg,
         )
 
-        if self.last_snapshot:
+        x_start, y_start = 50, 3
+        if self.last_snapshot and self.is_running:
             snapshot = self.last_snapshot
-            x_start, y_start = 50, 3
             snapshot.tilemap.draw(screen, x_start, y_start)
             for team in snapshot.teams:
                 for gladiator in team:
@@ -189,3 +203,5 @@ class ArenaSimulation(FormState):
                 f"best generation {snapshot.longest_generation[0]} [{snapshot.longest_generation[1]} turns]",
                 fg_color=status_fg,
             )
+        else:
+            self.map_preview.draw(screen, x_start, y_start)
