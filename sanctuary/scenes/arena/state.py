@@ -11,9 +11,6 @@ from .config import ARENA_HEIGHT, ARENA_WIDTH, ZOOM_SCALES
 from .entities import Entity, create_player
 from .generators import ARENA_PRESETS
 from .tile_map import TileMap
-from .tiles import EMPTY, Tile
-
-
 
 
 class Arena(State):
@@ -23,6 +20,8 @@ class Arena(State):
     """
     tilemap: TileMap
     player: Entity
+    player_dx: int
+    player_dy: int
     visible_cells: set[Point]
     preset_index: int
     scale_index: int
@@ -45,10 +44,14 @@ class Arena(State):
         self.tilemap = generator(ARENA_WIDTH, ARENA_HEIGHT)
 
         self.player = create_player(
-            x=ARENA_WIDTH // 2,
-            y=ARENA_HEIGHT // 2,
-            view_distance=10,
+            ARENA_WIDTH // 2,
+            ARENA_HEIGHT // 2,
+            10,
+            100,
+            100
         )
+        self.player_dx = 0
+        self.player_dy = 0
 
         self.update_fov()
 
@@ -67,13 +70,13 @@ class Arena(State):
     def handle_input(self, input_handler: InputHandler) -> Command | None:
         # Movement controls
         if input_handler.is_repeated(Key.RIGHT, Key.D):
-            self.player.dx += 1
+            self.player_dx += 1
         if input_handler.is_repeated(Key.LEFT, Key.A):
-            self.player.dx -= 1
+            self.player_dx -= 1
         if input_handler.is_repeated(Key.UP, Key.W):
-            self.player.dy -= 1
+            self.player_dy -= 1
         if input_handler.is_repeated(Key.DOWN, Key.S):
-            self.player.dy += 1
+            self.player_dy += 1
 
         # Footprint scale / zoom toggle (Tab)
         if input_handler.just_pressed(Key.TAB):
@@ -96,28 +99,28 @@ class Arena(State):
         return None
 
     def update(self, dt: float, screen_size: Size) -> None:
-        if self.player.dx != 0 and self.player.dy != 0:
+        if self.player_dx != 0 and self.player_dy != 0:
             # Diagonal movement attempt: enforce strict corner collision check (supercover raycasting parity).
             # Both orthogonal intermediate steps and the target cell must be walkable to prevent diagonal clipping.
-            can_x = self.tilemap.is_walkable(self.player.x + self.player.dx, self.player.y)
-            can_y = self.tilemap.is_walkable(self.player.x, self.player.y + self.player.dy)
-            target = self.tilemap.is_walkable(self.player.x + self.player.dx, self.player.y + self.player.dy)
+            can_x = self.tilemap.is_walkable(self.player.x + self.player_dx, self.player.y)
+            can_y = self.tilemap.is_walkable(self.player.x, self.player.y + self.player_dy)
+            target = self.tilemap.is_walkable(self.player.x + self.player_dx, self.player.y + self.player_dy)
 
             if can_x and can_y and target:
-                self.player.x += self.player.dx
-                self.player.y += self.player.dy
+                self.player.x += self.player_dx
+                self.player.y += self.player_dy
                 self.update_fov()
-            self.player.dx = 0
-            self.player.dy = 0
-        elif self.player.dx != 0 or self.player.dy != 0:
-            target_x = self.player.x + self.player.dx
-            target_y = self.player.y + self.player.dy
+            self.player_dx = 0
+            self.player_dy = 0
+        elif self.player_dx != 0 or self.player_dy != 0:
+            target_x = self.player.x + self.player_dx
+            target_y = self.player.y + self.player_dy
             if self.tilemap.is_walkable(target_x, target_y):
                 self.player.x = target_x
                 self.player.y = target_y
                 self.update_fov()
-            self.player.dx = 0
-            self.player.dy = 0
+            self.player_dx = 0
+            self.player_dy = 0
 
     def draw(self, screen: Screen) -> None:
         scale_w, scale_h = self.tile_scale

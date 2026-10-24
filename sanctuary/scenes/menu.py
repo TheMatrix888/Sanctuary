@@ -29,21 +29,12 @@ def create_main_menu() -> FormState:
             on_cancel=Pop(),
         )
 
-    def arena_menu():
-        return FormState(
-            title="Arena menu",
-            items=[
-                Button("Arena", Push(Arena())),
-                Button("Arena simulation", Push(ArenaSimulation())),
-            ],
-            on_cancel=Pop(),
-        )
-
     return FormState(
         title="Sanctuary Main Menu",
         items=[
+            Button("Arena", Push(Arena())),
+            Button("Arena simulation", Push(ArenaSimulation())),
             Button("Effects", Push(effects_menu())),
-            Button("Arena", Push(arena_menu())),
             Button("Quit", Quit()),
         ],
         on_cancel=Quit(),

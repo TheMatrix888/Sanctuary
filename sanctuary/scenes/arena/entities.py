@@ -7,9 +7,7 @@ from dataclasses import dataclass
 from sanctuary.core.screen import Screen
 
 from .textures import (
-    BLUE_GLADIATOR_TEXTURE,
     PLAYER_TEXTURE,
-    RED_GLADIATOR_TEXTURE,
     Texture,
 )
 
@@ -22,12 +20,10 @@ class Entity:
     """
     x: int
     y: int
+    view_distance: int
+    hp: int
+    max_hp: int
     texture: Texture
-    view_distance: int = 10
-    dx: int = 0
-    dy: int = 0
-    hp: int = 100
-    max_hp: int = 100
 
     def draw(
         self,
@@ -45,26 +41,19 @@ class Entity:
         screen.draw_surface(screen_x, screen_y, surface, transparent_space=transparent_space)
 
 
-def create_player(x: int, y: int, view_distance: int = 10) -> Entity:
+def create_player(
+    x: int,
+    y: int,
+    view_distance: int,
+    hp: int,
+    max_hp: int,
+) -> Entity:
     """Factory creating a player entity with magenta styling and circular FOV."""
     return Entity(
         x=x,
         y=y,
+        view_distance=view_distance,
+        hp=hp,
+        max_hp=max_hp,
         texture=PLAYER_TEXTURE,
-        view_distance=view_distance,
-    )
-
-
-def create_gladiator(
-    x: int,
-    y: int,
-    texture: Texture,
-    view_distance: int = 8,
-) -> Entity:
-    """Factory creating an AI gladiator entity."""
-    return Entity(
-        x=x,
-        y=y,
-        texture=texture,
-        view_distance=view_distance,
     )

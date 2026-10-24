@@ -124,10 +124,9 @@ class ChoiceKnob(FormItem):
 
 @dataclass(slots=True)
 class Button(FormItem):
-    """Action button triggering a State Stack Command or callback on Enter."""
+    """Action button triggering a State Stack Command or callable action on Enter."""
     label: str
-    action: Command | None = None
-    callback: Callable[[], Command | None] | None = None
+    action: Command | Callable[[], Command | None] | None = None
 
     def render_value(self) -> str:
         return ""
@@ -136,8 +135,8 @@ class Button(FormItem):
         pass
 
     def on_activate(self) -> Command | None:
-        if self.callback is not None:
-            return self.callback()
+        if callable(self.action):
+            return self.action()
         return self.action
 
     def on_reset(self) -> None:

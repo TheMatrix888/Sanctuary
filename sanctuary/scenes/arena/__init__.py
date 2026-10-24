@@ -9,7 +9,6 @@ from .config import (
 )
 from .entities import (
     Entity,
-    create_gladiator,
     create_player,
 )
 from .generators import (
@@ -23,7 +22,7 @@ from .generators import (
 )
 from .gladiator import (
     Gladiator,
-    generate_team,
+    create_gladiator,
 )
 from .simulation import (
     ArenaSimulation,
@@ -32,17 +31,19 @@ from .simulation import (
     Snapshot,
 )
 from .state import Arena
-from .tile_map import TileMap
 from .textures import (
     BLOOD_FLOOR_TEXTURE,
     BLUE_GLADIATOR_TEXTURE,
     CHASM_TEXTURE,
+    DEAD_BLUE_GLADIATOR_TEXTURE,
+    DEAD_RED_GLADIATOR_TEXTURE,
     FLOOR_TEXTURE,
     PLAYER_TEXTURE,
     RED_GLADIATOR_TEXTURE,
     Texture,
     WALL_TEXTURE,
 )
+from .tile_map import TileMap
 from .tiles import (
     BLOOD_FLOOR,
     CHASM,
@@ -63,6 +64,8 @@ __all__ = [
     "BLUE_GLADIATOR_TEXTURE",
     "CHASM",
     "CHASM_TEXTURE",
+    "DEAD_BLUE_GLADIATOR_TEXTURE",
+    "DEAD_RED_GLADIATOR_TEXTURE",
     "EMPTY",
     "Entity",
     "FLOOR",
@@ -87,6 +90,5 @@ __all__ = [
     "generate_greek_amphitheater",
     "generate_proving_ground",
     "generate_sierpinski_ruins",
-    "generate_team",
     "generate_tectonic_chasm",
 ]
