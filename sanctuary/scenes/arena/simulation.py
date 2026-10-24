@@ -52,71 +52,7 @@ class ArenaSimulation(FormState):
         self.process = None
         self.last_snapshot = None
 
-        self.sim_button = Button(
-            label="Start simulation",
-            action=self._toggle_simulation,
-        )
-        self.entities_knob = Knob(
-            label="Entities per team",
-            value=10.0,
-            min_value=1.0,
-            max_value=20.0,
-            delta=1.0,
-            precision=0,
-            suffix="entities",
-        )
-        self.fps_knob = Knob(
-            label="Snapshots per second",
-            value=2.0,
-            min_value=1.0,
-            max_value=60.0,
-            delta=1.0,
-            precision=2,
-            suffix="fps",
-        )
-        self.mode_knob = ChoiceKnob(
-            label="Mode",
-            values=[
-                "Simulation",
-                "Theatre (fps = turns per second)",
-            ],
-            index=0,
-        )
-        self.map_knob = ChoiceKnob(
-            label="Map",
-            values=[
-                "Colosseum Arena",
-                "Concentric Bastions",
-                "Greek Amphitheater",
-                "Tectonic Chasm",
-                "Sierpinski Ruins",
-                "Empty Proving Ground",
-            ],
-            index=0,
-        )
-
-        self.load_button = Button(
-            label="Load genome [WIP]",
-            action=None,
-        )
-
-        self.save_button = Button(
-            label="Save genome [WIP]",
-            action=None,
-        )
-        self.back_button = Button(
-            label="Back",
-            action=Pop(),
-        )
-
-        self.setup_header = Header(
-            label="--- Simulation Setup ---",
-            color=Color(140, 180, 240),
-        )
-        self.live_header = Header(
-            label="--- Active Simulation Controls ---",
-            color=Color(80, 255, 120),
-        )
+        self._build_widgets()
 
         super().__init__(
             title="Arena Simulation",
@@ -125,8 +61,23 @@ class ArenaSimulation(FormState):
         )
 
         self._update_active_items()
-
         self.update_map_preview()
+
+    def _build_widgets(self) -> None:
+        """Instantiates compact form widgets, knobs, and decorative section headers."""
+        self.sim_button = Button("Start simulation", action=self._toggle_simulation)
+        self.setup_header = Header("--- Simulation Setup ---", color=Color(140, 180, 240))
+        self.live_header = Header("--- Active Simulation Controls ---", color=Color(80, 255, 120))
+
+        self.entities_knob = Knob.integer("Entities per team", value=10, min_value=1, max_value=20, suffix="entities")
+        self.fps_knob = Knob("Snapshots per second", value=2.0, min_value=1.0, max_value=60.0, precision=2,
+                             suffix="fps")
+        self.mode_knob = ChoiceKnob("Mode", ["Simulation", "Theatre (fps = turns per second)"])
+        self.map_knob = ChoiceKnob("Map", list(ARENA_PRESETS.keys()))
+
+        self.load_button = Button("Load genome [WIP]")
+        self.save_button = Button("Save genome [WIP]")
+        self.back_button = Button("Back", action=Pop())
 
     def update_map_preview(self) -> None:
         self.current_map = self.map_knob.current_value

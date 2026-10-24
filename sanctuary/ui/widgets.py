@@ -85,6 +85,29 @@ class Knob(FormItem):
     def get_help_hint(self) -> str:
         return "[←/→] Adjust  [Ctrl+←/→] x10  [R] Reset  [Esc] Back"
 
+    @classmethod
+    def integer(
+        cls,
+        label: str,
+        value: int,
+        min_value: int,
+        max_value: int,
+        delta: int = 1,
+        suffix: str = "",
+        default_value: int | None = None,
+    ) -> "Knob":
+        """Convenience factory for integer parameter controllers."""
+        return cls(
+            label=label,
+            value=float(value),
+            min_value=float(min_value),
+            max_value=float(max_value),
+            delta=float(delta),
+            precision=0,
+            default_value=float(default_value) if default_value is not None else None,
+            suffix=suffix,
+        )
+
 
 @dataclass(slots=True)
 class ChoiceKnob(FormItem):
