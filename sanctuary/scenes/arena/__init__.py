@@ -26,7 +26,9 @@ from .gladiator import (
 )
 from .simulation import ArenaSimulation
 from .worker import (
-    SimulationSettings,
+    Mode,
+    PlaybackSettings,
+    WorldConfig,
     SimulationWorker,
     Snapshot,
     run_simulation_worker,
@@ -73,9 +75,11 @@ __all__ = [
     "FLOOR_TEXTURE",
     "GENOME_SIZE",
     "Gladiator",
+    "Mode",
+    "PlaybackSettings",
     "PLAYER_TEXTURE",
     "RED_GLADIATOR_TEXTURE",
-    "SimulationSettings",
+    "WorldConfig",
     "SimulationWorker",
     "Snapshot",
     "Texture",

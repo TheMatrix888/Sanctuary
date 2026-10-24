@@ -5,6 +5,7 @@ Manages isolated tournament execution, genetic lifecycle, and state snapshot IPC
 import queue
 import time
 from dataclasses import dataclass
+from enum import StrEnum
 from multiprocessing import Queue
 from multiprocessing.synchronize import Event as EventType
 from random import randint, sample
@@ -35,17 +36,17 @@ HALF_WIDTH = ARENA_WIDTH // 2
 HALF_HEIGHT = ARENA_HEIGHT // 2
 
 QUADRANT_BOUNDS = (
-    (1, HALF_WIDTH - 1, 1, HALF_HEIGHT - 1),                        # 0: Top-Left
-    (HALF_WIDTH, ARENA_WIDTH - 2, 1, HALF_HEIGHT - 1),              # 1: Top-Right
-    (HALF_WIDTH, ARENA_WIDTH - 2, HALF_HEIGHT, ARENA_HEIGHT - 2),   # 2: Bottom-Right
-    (1, HALF_WIDTH - 1, HALF_HEIGHT, ARENA_HEIGHT - 2),             # 3: Bottom-Left
+    (1, HALF_WIDTH - 1, 1, HALF_HEIGHT - 1),  # 0: Top-Left
+    (HALF_WIDTH, ARENA_WIDTH - 2, 1, HALF_HEIGHT - 1),  # 1: Top-Right
+    (HALF_WIDTH, ARENA_WIDTH - 2, HALF_HEIGHT, ARENA_HEIGHT - 2),  # 2: Bottom-Right
+    (1, HALF_WIDTH - 1, HALF_HEIGHT, ARENA_HEIGHT - 2),  # 3: Bottom-Left
 )
 
 MOVE_DELTAS: tuple[tuple[int, int], ...] = (
-    (0, 1),   # 0: Down  (y + 1)
+    (0, 1),  # 0: Down  (y + 1)
     (-1, 0),  # 1: Left  (x - 1)
     (0, -1),  # 2: Up    (y - 1)
-    (1, 0),   # 3: Right (x + 1)
+    (1, 0),  # 3: Right (x + 1)
 )
 
 
@@ -60,12 +61,21 @@ class Snapshot:
 
 
 @dataclass(slots=True, frozen=True)
-class SimulationSettings:
+class WorldConfig:
     """Configurable execution parameters for tournament and visual pacing."""
     entities_per_team: int
-    snapshots_per_second: float
-    mode: str
     map: str
+
+class Mode(StrEnum):
+    SIMULATION = "Simulation"
+    THEATRE = "Theatre"
+    PAUSE = "Pause"
+
+
+@dataclass(slots=True, frozen=True)
+class PlaybackSettings:
+    snapshots_per_second: float
+    mode: Mode
 
 
 class SimulationWorker:
@@ -73,13 +83,15 @@ class SimulationWorker:
     Headless background simulation engine managing the genetic lifecycle,
     bytecode virtual machine execution, and cross-generation reproduction.
     """
-    settings: SimulationSettings
+    config: WorldConfig
+    playback_settings: PlaybackSettings
     tilemap: TileMap
     red_team: list[Gladiator]
     blue_team: list[Gladiator]
-    snapshot_time: float
+    snapshot_interval: float
     next_snapshot: float
-    queue: Queue
+    playback_settings_queue: Queue
+    snapshot_queue: Queue
     stop_event: EventType
     running: bool
     generation: int
@@ -88,10 +100,19 @@ class SimulationWorker:
     dead_gladiators: int
     longest_generation: tuple[int, int]
 
-    def __init__(self, snapshot_queue: Queue, stop_event: EventType, settings: SimulationSettings) -> None:
-        self.queue = snapshot_queue
+    def __init__(
+            self,
+            world_config: WorldConfig,
+            playback_settings: PlaybackSettings,
+            playback_settings_queue: Queue,
+            snapshot_queue: Queue,
+            stop_event: EventType,
+    ) -> None:
+        self.playback_settings_queue = playback_settings_queue
+        self.snapshot_queue = snapshot_queue
         self.stop_event = stop_event
-        self.reset(settings)
+        self.running = False
+        self.reset(world_config, playback_settings)
 
     def create_teams(self) -> None:
         """Initializes empty gladiator pools for both factions with default metrics."""
@@ -104,7 +125,7 @@ class SimulationWorker:
                 max_hp=100,
                 faction="red",
             )
-            for _ in range(self.settings.entities_per_team)
+            for _ in range(self.config.entities_per_team)
         ]
         self.blue_team = [
             create_gladiator(
@@ -115,7 +136,7 @@ class SimulationWorker:
                 max_hp=100,
                 faction="blue",
             )
-            for _ in range(self.settings.entities_per_team)
+            for _ in range(self.config.entities_per_team)
         ]
 
     def position_teams(self) -> None:
@@ -134,7 +155,7 @@ class SimulationWorker:
         red_pool = tiles_pool(*QUADRANT_BOUNDS[red_quadrant])
         blue_pool = tiles_pool(*QUADRANT_BOUNDS[blue_quadrant])
 
-        entities_count = self.settings.entities_per_team
+        entities_count = self.config.entities_per_team
         red_spawns = sample(red_pool, k=min(entities_count, len(red_pool)))
         blue_spawns = sample(blue_pool, k=min(entities_count, len(blue_pool)))
 
@@ -166,17 +187,15 @@ class SimulationWorker:
         blue_champion_genomes = [g.genome.copy() for g in self.blue_team[:k_champions]]
 
         # 3. Reproduction: cycle champion genomes and reset per-round score
-        for i, gladiator in enumerate(self.red_team):
-            parent_genome = red_champion_genomes[i % len(red_champion_genomes)]
-            gladiator.genome = parent_genome.copy()
-            gladiator.score = 0
-            gladiator.pc = 0
+        def reproduce(team: list[Gladiator], champion_genomes: list[list[int]]) -> None:
+            for i, gladiator in enumerate(team):
+                parent_genome = champion_genomes[i % len(champion_genomes)]
+                gladiator.genome = parent_genome.copy()
+                gladiator.score = 0
+                gladiator.pc = 0
 
-        for i, gladiator in enumerate(self.blue_team):
-            parent_genome = blue_champion_genomes[i % len(blue_champion_genomes)]
-            gladiator.genome = parent_genome.copy()
-            gladiator.score = 0
-            gladiator.pc = 0
+        reproduce(self.red_team, red_champion_genomes)
+        reproduce(self.blue_team, blue_champion_genomes)
 
         # 4. Point mutations: preserve top champion (index 0) intact, mutate descendants
         def mutate(team: list[Gladiator]) -> None:
@@ -199,10 +218,11 @@ class SimulationWorker:
         self.generation += 1
         self.position_teams()
 
-    def reset(self, settings: SimulationSettings) -> None:
+    def reset(self, config: WorldConfig, playback_settings: PlaybackSettings) -> None:
         """Resets the simulation world, generators, and state telemetry."""
-        self.settings = settings
-        generator = ARENA_PRESETS[settings.map]
+        self.config = config
+        self.playback_settings = playback_settings
+        generator = ARENA_PRESETS[config.map]
         self.tilemap = generator(ARENA_WIDTH, ARENA_HEIGHT)
 
         self.create_teams()
@@ -213,7 +233,7 @@ class SimulationWorker:
         self.dead_gladiators = 0
         self.max_turns = MAX_GENERATION_TURNS
 
-        self.snapshot_time = 1.0 / settings.snapshots_per_second
+        self.snapshot_interval = 1.0 / max(1.0, playback_settings.snapshots_per_second)
         self.next_snapshot = time.perf_counter()
 
     def update(self) -> None:
@@ -275,7 +295,7 @@ class SimulationWorker:
         self.turn += 1
 
         # Check generation end conditions
-        all_dead = self.dead_gladiators >= self.settings.entities_per_team * 2
+        all_dead = self.dead_gladiators >= self.config.entities_per_team * 2
         if self.turn >= self.max_turns or all_dead:
             self.new_generation()
 
@@ -288,32 +308,76 @@ class SimulationWorker:
             generation=self.generation,
             longest_generation=self.longest_generation,
         )
-        if self.queue.full():
+        if self.snapshot_queue.full():
             try:
-                self.queue.get_nowait()
+                self.snapshot_queue.get_nowait()
             except queue.Empty:
                 pass
         try:
-            self.queue.put_nowait(snapshot)
+            self.snapshot_queue.put_nowait(snapshot)
         except queue.Full:
             pass
+
+    def _poll_playback_settings(self) -> None:
+        """Drains pending playback settings from the queue and updates interval."""
+        updated = False
+        while not self.playback_settings_queue.empty():
+            try:
+                self.playback_settings = self.playback_settings_queue.get_nowait()
+                updated = True
+            except queue.Empty:
+                break
+        if updated:
+            self.snapshot_interval = 1.0 / max(1.0, self.playback_settings.snapshots_per_second)
 
     def run(self) -> None:
         """Child process execution loop with mode-dependent pacing."""
         self.running = True
+        self.next_snapshot = time.perf_counter()
+
         while self.running and not self.stop_event.is_set():
-            now = time.perf_counter()
-            if self.settings.mode == "Simulation":
+            mode = self.playback_settings.mode
+
+            if mode is Mode.SIMULATION:
                 self.update()
-            if now >= self.next_snapshot:
+                now = time.perf_counter()
+                if now >= self.next_snapshot:
+                    self._poll_playback_settings()
+                    self.send_snapshot()
+                    self.next_snapshot = now + self.snapshot_interval
+
+            elif mode is Mode.THEATRE:
                 self.update()
                 self.send_snapshot()
-                self.next_snapshot = now + self.snapshot_time
+                self._poll_playback_settings()
+
+                time_left = self.next_snapshot - time.perf_counter()
+                if time_left > 0:
+                    time.sleep(time_left)
+                self.next_snapshot = time.perf_counter() + self.snapshot_interval
+
+            elif mode is Mode.PAUSE:
+                self._poll_playback_settings()
+                time.sleep(0.02)
+                self.next_snapshot = time.perf_counter()
+
             else:
-                time.sleep(0.001)
+                raise ValueError(f"Unsupported simulation mode: {mode}")
 
 
-def run_simulation_worker(snapshot_queue: Queue, stop_event: EventType, settings: SimulationSettings) -> None:
+def run_simulation_worker(
+    world_config: WorldConfig,
+    playback_settings: PlaybackSettings,
+    playback_settings_queue: Queue,
+    snapshot_queue: Queue,
+    stop_event: EventType,
+) -> None:
     """Entrypoint executed in the isolated background child process."""
-    worker = SimulationWorker(snapshot_queue, stop_event, settings)
+    worker = SimulationWorker(
+        world_config=world_config,
+        playback_settings=playback_settings,
+        playback_settings_queue=playback_settings_queue,
+        snapshot_queue=snapshot_queue,
+        stop_event=stop_event,
+    )
     worker.run()

@@ -2,6 +2,8 @@
 Arena Simulation Form State — Parameter inspector and genetic tournament configuration.
 Coordinates evolutionary bytecode gladiators in an isolated multiprocessing worker.
 """
+import queue
+import time
 from multiprocessing import Event, Process, Queue
 from multiprocessing.synchronize import Event as EventType
 
@@ -16,8 +18,10 @@ from .config import ARENA_HEIGHT, ARENA_WIDTH
 from .generators import ARENA_PRESETS
 from .tile_map import TileMap
 from .worker import (
-    SimulationSettings,
+    Mode,
+    PlaybackSettings,
     Snapshot,
+    WorldConfig,
     run_simulation_worker,
 )
 
@@ -40,17 +44,29 @@ class ArenaSimulation(FormState):
     back_button: Button
     process: Process | None
     queue: Queue
+    playback_queue: Queue
     stop_event: EventType
     last_snapshot: Snapshot | None
     current_map: str
     map_preview: TileMap
+    _last_fps: float
+    _last_mode: str
+    gps: float
+    _last_gps_time: float
+    _last_gps_generation: int
 
     def __init__(self) -> None:
         self.is_running = False
         self.queue = Queue(maxsize=2)
+        self.playback_queue = Queue(maxsize=10)
         self.stop_event = Event()
         self.process = None
         self.last_snapshot = None
+        self._last_fps = 0.0
+        self._last_mode = ""
+        self.gps = 0.0
+        self._last_gps_time = time.perf_counter()
+        self._last_gps_generation = 1
 
         self._build_widgets()
 
@@ -72,7 +88,7 @@ class ArenaSimulation(FormState):
         self.entities_knob = Knob.integer("Entities per team", value=10, min_value=1, max_value=20, suffix="entities")
         self.fps_knob = Knob("Snapshots per second", value=2.0, min_value=1.0, max_value=60.0, precision=2,
                              suffix="fps")
-        self.mode_knob = ChoiceKnob("Mode", ["Simulation", "Theatre (fps = turns per second)"])
+        self.mode_knob = ChoiceKnob("Mode", [mode.value for mode in Mode])
         self.map_knob = ChoiceKnob("Map", list(ARENA_PRESETS.keys()))
 
         self.load_button = Button("Load genome [WIP]")
@@ -108,23 +124,41 @@ class ArenaSimulation(FormState):
             ]
         self.ensure_selectable_index()
 
-    def gather_settings(self) -> SimulationSettings:
-        """Extracts configuration settings from UI widget state."""
-        return SimulationSettings(
+    def gather_world_config(self) -> WorldConfig:
+        """Extracts immutable configuration parameters for tournament genesis."""
+        return WorldConfig(
             entities_per_team=int(self.entities_knob.value),
-            snapshots_per_second=self.fps_knob.value,
-            mode=self.mode_knob.current_value,
             map=self.map_knob.current_value,
+        )
+
+    def gather_playback_settings(self) -> PlaybackSettings:
+        """Extracts dynamic playback pacing parameters from interactive controls."""
+        return PlaybackSettings(
+            snapshots_per_second=self.fps_knob.value,
+            mode=Mode(self.mode_knob.current_value),
         )
 
     def _toggle_simulation(self) -> Command | None:
         """Toggles simulation execution state and synchronizes button label."""
         if not self.is_running:
             self.stop_event.clear()
-            settings = self.gather_settings()
+            self.gps = 0.0
+            self._last_gps_time = time.perf_counter()
+            self._last_gps_generation = 1
+            world_config = self.gather_world_config()
+            playback_settings = self.gather_playback_settings()
+            self._last_fps = playback_settings.snapshots_per_second
+            self._last_mode = playback_settings.mode.value
+
             self.process = Process(
                 target=run_simulation_worker,
-                args=(self.queue, self.stop_event, settings),
+                args=(
+                    world_config,
+                    playback_settings,
+                    self.playback_queue,
+                    self.queue,
+                    self.stop_event,
+                ),
             )
             self.process.start()
         else:
@@ -135,6 +169,7 @@ class ArenaSimulation(FormState):
                     self.process.terminate()
             self.process = None
             self.last_snapshot = None
+            self.gps = 0.0
 
         self.is_running = not self.is_running
         self.sim_button.label = "Stop simulation" if self.is_running else "Start simulation"
@@ -145,6 +180,25 @@ class ArenaSimulation(FormState):
         super().update(dt, screen_size)
         if not self.queue.empty():
             self.last_snapshot = self.queue.get()
+            now = time.perf_counter()
+            elapsed = now - self._last_gps_time
+            if elapsed >= 0.5:
+                delta_gen = self.last_snapshot.generation - self._last_gps_generation
+                self.gps = max(0.0, delta_gen / elapsed)
+                self._last_gps_time = now
+                self._last_gps_generation = self.last_snapshot.generation
+
+        if self.is_running:
+            current_fps = self.fps_knob.value
+            current_mode = self.mode_knob.current_value
+            if current_fps != self._last_fps or current_mode != self._last_mode:
+                self._last_fps = current_fps
+                self._last_mode = current_mode
+                playback_settings = self.gather_playback_settings()
+                try:
+                    self.playback_queue.put_nowait(playback_settings)
+                except queue.Full:
+                    pass
 
         if self.current_map != self.map_knob.current_value:
             self.update_map_preview()
@@ -154,8 +208,9 @@ class ArenaSimulation(FormState):
 
         status_y = screen.size.rows - 2
         if self.is_running:
-            status_badge = "[RUNNING]"
-            status_fg = Color(80, 255, 120)
+            mode_enum = Mode(self.mode_knob.current_value)
+            status_badge = f"[{mode_enum.value.upper()}]"
+            status_fg = Color(80, 255, 120) if mode_enum is not Mode.PAUSE else Color(255, 200, 80)
         else:
             status_badge = "[STOPPED]"
             status_fg = Color(160, 160, 180)
@@ -176,11 +231,18 @@ class ArenaSimulation(FormState):
                 for gladiator in team:
                     gladiator.draw(screen, x_start, y_start)
 
+            if self.gps >= 10:
+                gps_suffix = f" ({int(round(self.gps))} gen/s)"
+            elif self.gps > 0:
+                gps_suffix = f" ({self.gps:.1f} gen/s)"
+            else:
+                gps_suffix = ""
+
             y_info = y_start + snapshot.tilemap.height + 1
             screen.draw_text(
                 x_start,
                 y_info,
-                f"turn {snapshot.turn} | generation {snapshot.generation}",
+                f"turn {snapshot.turn} | generation {snapshot.generation}{gps_suffix}",
                 fg_color=status_fg,
             )
             screen.draw_text(
