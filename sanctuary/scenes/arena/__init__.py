@@ -24,11 +24,12 @@ from .gladiator import (
     Gladiator,
     create_gladiator,
 )
-from .simulation import (
-    ArenaSimulation,
+from .simulation import ArenaSimulation
+from .worker import (
     SimulationSettings,
     SimulationWorker,
     Snapshot,
+    run_simulation_worker,
 )
 from .state import Arena
 from .textures import (
@@ -91,4 +92,5 @@ __all__ = [
     "generate_proving_ground",
     "generate_sierpinski_ruins",
     "generate_tectonic_chasm",
+    "run_simulation_worker",
 ]
