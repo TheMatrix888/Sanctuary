@@ -40,7 +40,6 @@ class ArenaSimulation(FormState):
     current_map: str
     map_preview: TileMap
 
-
     def __init__(self) -> None:
         self.is_running = False
         self.queue = Queue(maxsize=2)
@@ -91,37 +90,40 @@ class ArenaSimulation(FormState):
             index=0,
         )
 
-        items = [
-            self.sim_button,
-            self.entities_knob,
-            self.fps_knob,
-            self.mode_knob,
-            self.map_knob,
-            Button(
-                label="Load genome [WIP]",
-                action=None,
-            ),
-            Button(
-                label="Save genome [WIP]",
-                action=None,
-            ),
-            Button(
-                label="Back",
-                action=Pop(),
-            ),
-        ]
+        self.load_button = Button(
+            label="Load genome [WIP]",
+            action=None,
+        )
+
+        self.save_button = Button(
+            label="Save genome [WIP]",
+            action=None,
+        )
+        self.back_button = Button(
+            label="Back",
+            action=Pop(),
+        )
 
         super().__init__(
             title="Arena Simulation",
-            items=items,
+            items=[],
             on_cancel=Pop(),
         )
+
+        self._update_active_items()
 
         self.update_map_preview()
 
     def update_map_preview(self) -> None:
         self.current_map = self.map_knob.current_value
         self.map_preview = ARENA_PRESETS[self.current_map](ARENA_WIDTH, ARENA_HEIGHT)
+
+    def _update_active_items(self) -> None:
+        if self.is_running:
+            self.items = [self.sim_button, self.fps_knob, self.mode_knob, self.save_button, self.back_button]
+        else:
+            self.items = [self.sim_button, self.entities_knob, self.map_knob, self.load_button, self.back_button]
+        self.index = min(self.index, len(self.items) - 1)
 
     def gather_settings(self) -> SimulationSettings:
         """Extracts configuration settings from UI widget state."""
@@ -153,6 +155,7 @@ class ArenaSimulation(FormState):
 
         self.is_running = not self.is_running
         self.sim_button.label = "Stop simulation" if self.is_running else "Start simulation"
+        self._update_active_items()
         return None
 
     def update(self, dt: float, screen_size: Size) -> None:
