@@ -36,6 +36,16 @@ from .gladiator import Gladiator, create_gladiator
 from .tile_map import TileMap
 from .tiles import BLOOD_FLOOR
 
+HALF_WIDTH = ARENA_WIDTH // 2
+HALF_HEIGHT = ARENA_HEIGHT // 2
+
+QUADRANT_BOUNDS = (
+    (1, HALF_WIDTH - 1, 1, HALF_HEIGHT - 1),                        # 0: Top-Left
+    (HALF_WIDTH, ARENA_WIDTH - 2, 1, HALF_HEIGHT - 1),              # 1: Top-Right
+    (HALF_WIDTH, ARENA_WIDTH - 2, HALF_HEIGHT, ARENA_HEIGHT - 2),   # 2: Bottom-Right
+    (1, HALF_WIDTH - 1, HALF_HEIGHT, ARENA_HEIGHT - 2),             # 3: Bottom-Left
+)
+
 MOVE_DELTAS: tuple[tuple[int, int], ...] = (
     (0, 1),   # 0: Down  (y + 1)
     (-1, 0),  # 1: Left  (x - 1)
@@ -51,7 +61,7 @@ class Snapshot:
     tilemap: TileMap
     turn: int
     generation: int
-    longest_generation: tuple[int, int, int]
+    longest_generation: tuple[int, int]
 
 
 @dataclass(slots=True, frozen=True)
@@ -115,8 +125,8 @@ class SimulationWorker:
 
     def position_teams(self) -> None:
         """Samples non-blood walkable floor cells in opposing quadrant corners and positions gladiators."""
-        half_width = ARENA_WIDTH // 2
-        half_height = ARENA_HEIGHT // 2
+        red_quadrant = randint(0, 3)
+        blue_quadrant = (red_quadrant + 2) % 4
 
         def tiles_pool(x_min: int, x_max: int, y_min: int, y_max: int) -> list[Point]:
             return [
@@ -126,8 +136,8 @@ class SimulationWorker:
                 if self.tilemap.is_walkable(x, y) and self.tilemap.get_tile(x, y) is not BLOOD_FLOOR
             ]
 
-        red_pool = tiles_pool(1, half_width - 1, 1, half_height - 1)
-        blue_pool = tiles_pool(half_width, ARENA_WIDTH - 2, half_height, ARENA_HEIGHT - 2)
+        red_pool = tiles_pool(*QUADRANT_BOUNDS[red_quadrant])
+        blue_pool = tiles_pool(*QUADRANT_BOUNDS[blue_quadrant])
 
         entities_count = self.settings.entities_per_team
         red_spawns = sample(red_pool, k=min(entities_count, len(red_pool)))
