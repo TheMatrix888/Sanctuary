@@ -10,7 +10,7 @@ from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import Command, Pop
 from sanctuary.ui.form import FormState
-from sanctuary.ui.widgets import Button, ChoiceKnob, Knob
+from sanctuary.ui.widgets import Button, ChoiceKnob, Header, Knob, Spacer
 
 from .config import ARENA_HEIGHT, ARENA_WIDTH
 from .generators import ARENA_PRESETS
@@ -29,10 +29,15 @@ class ArenaSimulation(FormState):
     """
     is_running: bool
     sim_button: Button
+    setup_header: Header
+    live_header: Header
     entities_knob: Knob
     fps_knob: Knob
     mode_knob: ChoiceKnob
     map_knob: ChoiceKnob
+    load_button: Button
+    save_button: Button
+    back_button: Button
     process: Process | None
     queue: Queue
     stop_event: EventType
@@ -104,6 +109,15 @@ class ArenaSimulation(FormState):
             action=Pop(),
         )
 
+        self.setup_header = Header(
+            label="--- Simulation Setup ---",
+            color=Color(140, 180, 240),
+        )
+        self.live_header = Header(
+            label="--- Active Simulation Controls ---",
+            color=Color(80, 255, 120),
+        )
+
         super().__init__(
             title="Arena Simulation",
             items=[],
@@ -120,10 +134,28 @@ class ArenaSimulation(FormState):
 
     def _update_active_items(self) -> None:
         if self.is_running:
-            self.items = [self.sim_button, self.fps_knob, self.mode_knob, self.save_button, self.back_button]
+            self.items = [
+                self.sim_button,
+                Spacer(),
+                self.live_header,
+                Spacer(),
+                self.fps_knob,
+                self.mode_knob,
+                self.save_button,
+                self.back_button,
+            ]
         else:
-            self.items = [self.sim_button, self.entities_knob, self.map_knob, self.load_button, self.back_button]
-        self.index = min(self.index, len(self.items) - 1)
+            self.items = [
+                self.sim_button,
+                Spacer(),
+                self.setup_header,
+                Spacer(),
+                self.entities_knob,
+                self.map_knob,
+                self.load_button,
+                self.back_button,
+            ]
+        self.ensure_selectable_index()
 
     def gather_settings(self) -> SimulationSettings:
         """Extracts configuration settings from UI widget state."""

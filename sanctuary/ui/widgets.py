@@ -6,12 +6,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Callable
 
+from sanctuary.core.primitives import Color
 from sanctuary.core.state import Command
 
 
 class FormItem(ABC):
     """Abstract interface for interactive form and inspector rows."""
     label: str
+    is_selectable: bool = True
 
     @abstractmethod
     def render_value(self) -> str:
@@ -144,3 +146,49 @@ class Button(FormItem):
 
     def get_help_hint(self) -> str:
         return "[Enter] Select  [Esc] Back"
+
+
+@dataclass(slots=True)
+class Header(FormItem):
+    """Non-selectable decorative section header or divider."""
+    label: str
+    color: Color = Color(140, 180, 240)
+    is_selectable: bool = False
+
+    def render_value(self) -> str:
+        return ""
+
+    def on_adjust(self, delta: int, multiplier: float = 1.0) -> None:
+        pass
+
+    def on_activate(self) -> Command | None:
+        return None
+
+    def on_reset(self) -> None:
+        pass
+
+    def get_help_hint(self) -> str:
+        return ""
+
+
+@dataclass(slots=True)
+class Spacer(FormItem):
+    """Non-selectable vertical spacing row."""
+    label: str = ""
+    is_selectable: bool = False
+
+    def render_value(self) -> str:
+        return ""
+
+    def on_adjust(self, delta: int, multiplier: float = 1.0) -> None:
+        pass
+
+    def on_activate(self) -> Command | None:
+        return None
+
+    def on_reset(self) -> None:
+        pass
+
+    def get_help_hint(self) -> str:
+        return ""
+

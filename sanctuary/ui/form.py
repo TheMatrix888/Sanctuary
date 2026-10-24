@@ -34,8 +34,31 @@ class FormState(State):
         self.on_cancel = on_cancel
 
     def on_enter(self) -> None:
-        if self.items:
-            self.index = min(self.index, len(self.items) - 1)
+        self.ensure_selectable_index()
+
+    def ensure_selectable_index(self) -> None:
+        """Guarantees cursor index points to an interactive, selectable item."""
+        if not self.items:
+            self.index = 0
+            return
+        self.index = min(max(0, self.index), len(self.items) - 1)
+        if self.items[self.index].is_selectable:
+            return
+        for offset in range(len(self.items)):
+            fwd = (self.index + offset) % len(self.items)
+            if self.items[fwd].is_selectable:
+                self.index = fwd
+                return
+
+    def _navigate(self, step: int) -> None:
+        """Cycles cursor index skipping non-selectable section headers and spacers."""
+        selectable_indices = [idx for idx, item in enumerate(self.items) if item.is_selectable]
+        if not selectable_indices:
+            return
+        new_index = (self.index + step) % len(self.items)
+        while not self.items[new_index].is_selectable:
+            new_index = (new_index + step) % len(self.items)
+        self.index = new_index
 
     def handle_input(self, input_handler: InputHandler) -> Command | None:
         if not self.items:
@@ -43,11 +66,13 @@ class FormState(State):
                 return self.on_cancel
             return None
 
+        self.ensure_selectable_index()
+
         # Vertical navigation
         if input_handler.is_repeated(Key.UP) or input_handler.is_repeated(Key.W):
-            self.index = (self.index - 1) % len(self.items)
+            self._navigate(-1)
         if input_handler.is_repeated(Key.DOWN) or input_handler.is_repeated(Key.S):
-            self.index = (self.index + 1) % len(self.items)
+            self._navigate(1)
 
         current_item = self.items[self.index]
         is_accelerated = input_handler.is_pressed(Key.CTRL)
@@ -95,17 +120,31 @@ class FormState(State):
 
         # Items listing
         start_y = 3
+        selectable_num = 1
         for i, item in enumerate(self.items):
             y = start_y + i
             if y >= rows - 1:
                 break
+
+            if not item.is_selectable:
+                if item.label:
+                    color = getattr(item, "color", Color(140, 180, 240))
+                    screen.draw_text(
+                        x=2,
+                        y=y,
+                        text=f"    {item.label}",
+                        fg_color=color,
+                    )
+                continue
+
             hover = (i == self.index)
             prefix = "--> " if hover else "    "
             value_str = item.render_value()
             if value_str:
-                label_text = f"{prefix}{i + 1}. {item.label} {value_str}"
+                label_text = f"{prefix}{selectable_num}. {item.label} {value_str}"
             else:
-                label_text = f"{prefix}{i + 1}. {item.label}"
+                label_text = f"{prefix}{selectable_num}. {item.label}"
+            selectable_num += 1
 
             fg = Color(120, 240, 255) if hover else Color(140, 150, 170)
             bg = Color(24, 32, 48) if hover else DEFAULT_BG
@@ -119,7 +158,7 @@ class FormState(State):
             )
 
         # Dynamic contextual bottom help bar
-        if self.items:
+        if self.items and 0 <= self.index < len(self.items) and self.items[self.index].is_selectable:
             hover_item = self.items[self.index]
             help_text = f" [W/S, ↑/↓ Navigate] {hover_item.get_help_hint()} "
         else:
