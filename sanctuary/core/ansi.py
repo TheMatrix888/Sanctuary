@@ -54,7 +54,8 @@ def reset_terminal_sequence() -> str:
     Composite reset sequence:
     1. Resets active brush and text attributes (RESET_ATTRIBUTES).
     2. Hides the text cursor to prevent visual flicker (HIDE_CURSOR).
-    3. Clears the screen (CLEAR_SCREEN).
-    4. Repositions cursor to home position 1;1 (CURSOR_HOME).
+    3. Disables terminal line auto-wrap to prevent scrolling on bottom-right cell writes (DISABLE_AUTO_WRAP).
+    4. Clears the screen (CLEAR_SCREEN).
+    5. Repositions cursor to home position 1;1 (CURSOR_HOME).
     """
-    return f"{RESET_ATTRIBUTES}{HIDE_CURSOR}{CLEAR_SCREEN}{CURSOR_HOME}"
+    return f"{RESET_ATTRIBUTES}{HIDE_CURSOR}{DISABLE_AUTO_WRAP}{CLEAR_SCREEN}{CURSOR_HOME}"

@@ -38,6 +38,7 @@ def draw_telemetry_hud(screen: Screen, metrics: FrameMetrics) -> None:
         (f" Logic {metrics.logic_ms:5.1f} ms ", False),
         (f" Draw  {metrics.draw_ms:5.1f} ms ", False),
         (f" Flush {metrics.flush_ms:5.1f} ms ", False),
+        (f" Screen {screen.size.columns}x{screen.size.rows} ", False),
     ]
 
     max_len = max(len(text) for text, _ in panel_items)

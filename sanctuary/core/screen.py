@@ -24,6 +24,7 @@ class Screen:
     last_bg: Color | None
     _pending_chunks: list[str]
     max_frame_bytes: int | None
+    _force_full_redraw: bool
 
     def __init__(
             self,
@@ -56,10 +57,15 @@ class Screen:
         self.font_size = self.terminal.get_font_size()
         self.back_buffer = Surface.empty(self.size)
         self.front_buffer = Surface.empty(self.size)
+        for row in self.front_buffer.cells:
+            for i in range(len(row)):
+                row[i] = Cell(char="", fg_color=None, bg_color=None)
         self.last_x, self.last_y = -2, -2
         self.last_fg = None
         self.last_bg = None
         self._pending_chunks = []
+        self._force_full_redraw = True
+        self.terminal.hide_cursor()
         self.terminal.reset()
 
     def clear(self, fill_cell: Cell = Cell(" ")) -> None:
@@ -132,6 +138,12 @@ class Screen:
         chunks: list[str] = []
         current_chunk = ""
         max_chunk = self.max_frame_bytes or 8192
+
+        if self._force_full_redraw:
+            current_chunk += ansi.RESET_ATTRIBUTES + ansi.HIDE_CURSOR
+            self.last_fg = None
+            self.last_bg = None
+            self._force_full_redraw = False
 
         for y in range(self.size.rows):
             old_line = self.front_buffer.cells[y]
@@ -217,5 +229,17 @@ class Screen:
         return False
 
     def resize(self, new_size: Size) -> None:
-        """Reallocates back and front buffers to match new terminal dimensions."""
-        self.reset(new_size)
+        """Reallocates back and front buffers to match new terminal dimensions without full terminal reset."""
+        self.size = new_size
+        self.font_size = self.terminal.get_font_size()
+        self.back_buffer = Surface.empty(self.size)
+        self.front_buffer = Surface.empty(self.size)
+        for row in self.front_buffer.cells:
+            for i in range(len(row)):
+                row[i] = Cell(char="", fg_color=None, bg_color=None)
+        self.last_x, self.last_y = -2, -2
+        self.last_fg = None
+        self.last_bg = None
+        self._pending_chunks = []
+        self._force_full_redraw = True
+        self.terminal.hide_cursor()

@@ -91,7 +91,22 @@ class Terminal(Protocol):
     def get_size(self) -> Size:
         ...
 
-    def set_size(self, columns: int, rows: int) -> None:
+    def set_size(self, columns: int, rows: int, center: bool = False) -> None:
+        ...
+
+    def center_window(self) -> None:
+        ...
+
+    def set_position(self, x: int, y: int) -> None:
+        ...
+
+    def get_position(self) -> tuple[int, int]:
+        ...
+
+    def get_window_size_pixels(self) -> tuple[int, int]:
+        ...
+
+    def get_monitor_size_pixels(self) -> tuple[int, int]:
         ...
 
     def get_font_size(self) -> Size:
@@ -200,10 +215,30 @@ class VirtualTerminal:
         """Returns simulated terminal dimensions in character cells."""
         return Size(width=self.columns, height=self.rows)
 
-    def set_size(self, columns: int, rows: int) -> None:
+    def set_size(self, columns: int, rows: int, center: bool = False) -> None:
         """Updates simulated viewport dimensions."""
         self.columns = columns
         self.rows = rows
+
+    def center_window(self) -> None:
+        """Simulated center window (no-op in headless mode)."""
+        pass
+
+    def set_position(self, x: int, y: int) -> None:
+        """Simulated window repositioning."""
+        pass
+
+    def get_position(self) -> tuple[int, int]:
+        """Returns simulated top-left coordinates."""
+        return (0, 0)
+
+    def get_window_size_pixels(self) -> tuple[int, int]:
+        """Returns simulated outer window pixel dimensions."""
+        return (self.columns * self.font_width, self.rows * self.font_height)
+
+    def get_monitor_size_pixels(self) -> tuple[int, int]:
+        """Returns simulated primary display resolution."""
+        return (1920, 1080)
 
     def get_font_size(self) -> Size:
         """Returns simulated character cell pixel dimensions."""
@@ -392,10 +427,11 @@ class WindowsTerminal:
         self.kernel32.SetConsoleCP(65001)
 
     def _enable_ansi(self) -> None:
-        """Enables hardware VT100 ANSI escape sequence parsing in Windows 10 conhost."""
+        """Enables hardware VT100 ANSI escape sequence parsing in Windows 10 conhost and disables auto line wrap."""
         stdout_mode = wintypes.DWORD()
         if self.kernel32.GetConsoleMode(self.stdout_handle, ctypes.byref(stdout_mode)):
-            new_mode = stdout_mode.value | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+            # Strip ENABLE_WRAP_AT_EOL_OUTPUT (0x0002) to prevent conhost from scrolling on rightmost/bottom-right writes
+            new_mode = (stdout_mode.value | ENABLE_VIRTUAL_TERMINAL_PROCESSING) & ~0x0002
             self.kernel32.SetConsoleMode(self.stdout_handle, new_mode)
             # Enter xterm alternate screen buffer and disable auto-wrap
             self.write(ansi.ENTER_ALT_SCREEN + ansi.DISABLE_AUTO_WRAP)
@@ -438,11 +474,12 @@ class WindowsTerminal:
         except OSError:
             return Size(width=self.columns, height=self.rows)
 
-    def _set_console_geometry(self, columns: int, rows: int) -> None:
+    def _set_console_geometry(self, columns: int, rows: int, center: bool = False) -> None:
         """
         Applies target dimensions to both the console viewport and buffer
         using safe expanding-buffer-first envelope sizing, guaranteeing zero scrollbars.
         Clamps dimensions to hardware limits to prevent Win32 invalid parameter errors.
+        Optionally centers the window frame on the active display monitor.
         """
         max_size = self.get_max_size()
         if max_size.width > 0 and max_size.height > 0:
@@ -463,6 +500,9 @@ class WindowsTerminal:
                 cur_buf_w = columns
                 cur_buf_h = rows
 
+            # Home hardware cursor to top-left to prevent Conhost viewport scrolling on buffer shrinkage
+            self.kernel32.SetConsoleCursorPosition(self.stdout_handle, 0)
+
             # 1. Expand buffer first to envelope current and target dimensions (prevents Window > Buffer error)
             max_buf_w = max(cur_buf_w, columns)
             max_buf_h = max(cur_buf_h, rows)
@@ -474,6 +514,9 @@ class WindowsTerminal:
 
             # 3. Clamp buffer exactly to target (prevents Buffer > Window scrollbars)
             self.kernel32.SetConsoleScreenBufferSize(self.stdout_handle, _pack_coord(columns, rows))
+
+            # Re-pin viewport strictly at (0, 0)
+            self.kernel32.SetConsoleWindowInfo(self.stdout_handle, True, ctypes.byref(win_rect))
         except Exception:
             pass
 
@@ -483,26 +526,107 @@ class WindowsTerminal:
                 font_sz = self.get_font_size()
                 fw = max(1, font_sz.width)
                 fh = max(1, font_sz.height)
-                rect = wintypes.RECT(0, 0, columns * fw, rows * fh)
-                style = self.user32.GetWindowLongW(self.hwnd, -16)  # GWL_STYLE
-                ex_style = self.user32.GetWindowLongW(self.hwnd, -20)  # GWL_EXSTYLE
-                self.user32.AdjustWindowRectEx(ctypes.byref(rect), style, False, ex_style)
-                outer_w = rect.right - rect.left
-                outer_h = rect.bottom - rect.top
-                # SWP_NOMOVE (0x2) | SWP_NOZORDER (0x4) | SWP_NOACTIVATE (0x10) | SWP_FRAMECHANGED (0x20)
-                self.user32.SetWindowPos(self.hwnd, None, 0, 0, outer_w, outer_h, 0x0036)
+                # Query exact real non-client frame metrics directly from active OS window
+                rc_win = wintypes.RECT()
+                rc_cli = wintypes.RECT()
+                if (self.user32.GetWindowRect(self.hwnd, ctypes.byref(rc_win)) and
+                        self.user32.GetClientRect(self.hwnd, ctypes.byref(rc_cli))):
+                    frame_w = (rc_win.right - rc_win.left) - (rc_cli.right - rc_cli.left)
+                    frame_h = (rc_win.bottom - rc_win.top) - (rc_cli.bottom - rc_cli.top)
+                    outer_w = columns * fw + frame_w
+                    outer_h = rows * fh + frame_h
+                else:
+                    rect = wintypes.RECT(0, 0, columns * fw, rows * fh)
+                    style = self.user32.GetWindowLongW(self.hwnd, -16)  # GWL_STYLE
+                    ex_style = self.user32.GetWindowLongW(self.hwnd, -20)  # GWL_EXSTYLE
+                    self.user32.AdjustWindowRectEx(ctypes.byref(rect), style, False, ex_style)
+                    outer_w = rect.right - rect.left
+                    outer_h = rect.bottom - rect.top
+                if center:
+                    screen_w = self.user32.GetSystemMetrics(0)  # SM_CXSCREEN
+                    screen_h = self.user32.GetSystemMetrics(1)  # SM_CYSCREEN
+                    pos_x = max(0, (screen_w - outer_w) // 2)
+                    pos_y = max(0, (screen_h - outer_h) // 2)
+                    # SWP_NOZORDER (0x4) | SWP_NOACTIVATE (0x10) | SWP_FRAMECHANGED (0x20)
+                    self.user32.SetWindowPos(self.hwnd, None, pos_x, pos_y, outer_w, outer_h, 0x0034)
+                else:
+                    # SWP_NOMOVE (0x2) | SWP_NOZORDER (0x4) | SWP_NOACTIVATE (0x10) | SWP_FRAMECHANGED (0x20)
+                    self.user32.SetWindowPos(self.hwnd, None, 0, 0, outer_w, outer_h, 0x0036)
             except Exception:
                 pass
 
-        # Final buffer clamp to eliminate scrollbars
+        # Final buffer clamp to eliminate scrollbars and hide hardware cursor
         self.clamp_buffer_to_window()
+        self.hide_cursor()
 
-    def set_size(self, columns: int, rows: int) -> None:
+    def set_size(self, columns: int, rows: int, center: bool = False) -> None:
         """
         Dynamically resizes terminal viewport and screen buffer.
         Clamps dimensions to hardware limits to prevent Win32 invalid parameter errors.
+        Optionally centers the window frame on the active display monitor.
         """
-        self._set_console_geometry(columns, rows)
+        self._set_console_geometry(columns, rows, center=center)
+
+    def center_window(self) -> None:
+        """Positions the console window in the exact center of the primary display monitor."""
+        if not self.hwnd or self.is_fullscreen_or_maximized():
+            return
+        try:
+            rect = wintypes.RECT()
+            if self.user32.GetWindowRect(self.hwnd, ctypes.byref(rect)):
+                win_w = rect.right - rect.left
+                win_h = rect.bottom - rect.top
+                screen_w = self.user32.GetSystemMetrics(0)  # SM_CXSCREEN
+                screen_h = self.user32.GetSystemMetrics(1)  # SM_CYSCREEN
+                pos_x = max(0, (screen_w - win_w) // 2)
+                pos_y = max(0, (screen_h - win_h) // 2)
+                # SWP_NOZORDER (0x4) | SWP_NOACTIVATE (0x10) | SWP_FRAMECHANGED (0x20)
+                self.user32.SetWindowPos(self.hwnd, None, pos_x, pos_y, win_w, win_h, 0x0034)
+        except Exception:
+            pass
+
+    def set_position(self, x: int, y: int) -> None:
+        """Repoints window frame coordinates on desktop without altering dimensions or focus."""
+        if not self.hwnd or self.is_fullscreen_or_maximized():
+            return
+        try:
+            # SWP_NOSIZE (0x1) | SWP_NOZORDER (0x4) | SWP_NOACTIVATE (0x10) = 0x0015
+            self.user32.SetWindowPos(self.hwnd, None, x, y, 0, 0, 0x0015)
+        except Exception:
+            pass
+
+    def get_position(self) -> tuple[int, int]:
+        """Returns physical desktop screen coordinates (left, top) of the console window."""
+        if not self.hwnd:
+            return (0, 0)
+        try:
+            rect = wintypes.RECT()
+            if self.user32.GetWindowRect(self.hwnd, ctypes.byref(rect)):
+                return (rect.left, rect.top)
+        except Exception:
+            pass
+        return (0, 0)
+
+    def get_window_size_pixels(self) -> tuple[int, int]:
+        """Returns outer physical window dimensions (width, height) in pixels."""
+        if not self.hwnd:
+            return (0, 0)
+        try:
+            rect = wintypes.RECT()
+            if self.user32.GetWindowRect(self.hwnd, ctypes.byref(rect)):
+                return (rect.right - rect.left, rect.bottom - rect.top)
+        except Exception:
+            pass
+        return (0, 0)
+
+    def get_monitor_size_pixels(self) -> tuple[int, int]:
+        """Returns the primary display monitor resolution (width, height) in pixels."""
+        try:
+            w = self.user32.GetSystemMetrics(0)  # SM_CXSCREEN
+            h = self.user32.GetSystemMetrics(1)  # SM_CYSCREEN
+            return (w, h)
+        except Exception:
+            return (1920, 1080)
 
     def get_font_size(self) -> Size:
         """
@@ -652,12 +776,21 @@ class WindowsTerminal:
                 font_sz = self.get_font_size()
                 fw = max(1, font_sz.width)
                 fh = max(1, font_sz.height)
-                rect = wintypes.RECT(0, 0, self._saved_windowed_cols * fw, self._saved_windowed_rows * fh)
-                style = self.user32.GetWindowLongW(self.hwnd, -16)  # GWL_STYLE
-                ex_style = self.user32.GetWindowLongW(self.hwnd, -20)  # GWL_EXSTYLE
-                self.user32.AdjustWindowRectEx(ctypes.byref(rect), style, False, ex_style)
-                outer_w = rect.right - rect.left
-                outer_h = rect.bottom - rect.top
+                rc_win = wintypes.RECT()
+                rc_cli = wintypes.RECT()
+                if (self.user32.GetWindowRect(self.hwnd, ctypes.byref(rc_win)) and
+                        self.user32.GetClientRect(self.hwnd, ctypes.byref(rc_cli))):
+                    frame_w = (rc_win.right - rc_win.left) - (rc_cli.right - rc_cli.left)
+                    frame_h = (rc_win.bottom - rc_win.top) - (rc_cli.bottom - rc_cli.top)
+                    outer_w = self._saved_windowed_cols * fw + frame_w
+                    outer_h = self._saved_windowed_rows * fh + frame_h
+                else:
+                    rect = wintypes.RECT(0, 0, self._saved_windowed_cols * fw, self._saved_windowed_rows * fh)
+                    style = self.user32.GetWindowLongW(self.hwnd, -16)  # GWL_STYLE
+                    ex_style = self.user32.GetWindowLongW(self.hwnd, -20)  # GWL_EXSTYLE
+                    self.user32.AdjustWindowRectEx(ctypes.byref(rect), style, False, ex_style)
+                    outer_w = rect.right - rect.left
+                    outer_h = rect.bottom - rect.top
                 # SWP_NOMOVE (0x2) | SWP_NOZORDER (0x4) | SWP_NOACTIVATE (0x10) | SWP_FRAMECHANGED (0x20)
                 self.user32.SetWindowPos(self.hwnd, None, 0, 0, outer_w, outer_h, 0x0036)
 
@@ -765,7 +898,15 @@ class WindowsTerminal:
         if actual_cols <= 0 or actual_rows <= 0:
             return
 
-        # 1. If buffer dimensions don't match visible rect exactly, clamp buffer
+        # 1. If visible window rect has non-zero Left or Top offset, pin it back to (0, 0)
+        if buffer_info.srWindow.Left != 0 or buffer_info.srWindow.Top != 0:
+            try:
+                home_rect = SMALL_RECT(0, 0, actual_cols - 1, actual_rows - 1)
+                self.kernel32.SetConsoleWindowInfo(self.stdout_handle, True, ctypes.byref(home_rect))
+            except Exception:
+                pass
+
+        # 2. If buffer dimensions don't match visible rect exactly, clamp buffer
         if buffer_info.dwSize.X != actual_cols or buffer_info.dwSize.Y != actual_rows:
             try:
                 self.kernel32.SetConsoleScreenBufferSize(self.stdout_handle, _pack_coord(actual_cols, actual_rows))
@@ -829,6 +970,8 @@ class WindowsTerminal:
         self.kernel32.GetCurrentConsoleFontEx.argtypes = [wintypes.HANDLE, wintypes.BOOL, ctypes.POINTER(CONSOLE_FONT_INFOEX)]
         self.kernel32.SetCurrentConsoleFontEx.restype = wintypes.BOOL
         self.kernel32.SetCurrentConsoleFontEx.argtypes = [wintypes.HANDLE, wintypes.BOOL, ctypes.POINTER(CONSOLE_FONT_INFOEX)]
+        self.kernel32.SetConsoleCursorPosition.restype = wintypes.BOOL
+        self.kernel32.SetConsoleCursorPosition.argtypes = [wintypes.HANDLE, ctypes.c_uint32]
 
     # =========================================================================
     # CONSTRUCTOR

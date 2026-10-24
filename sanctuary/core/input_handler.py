@@ -35,6 +35,10 @@ class Key(StrEnum):
     Q = "q"
     E = "e"
     R = "r"
+    H = "h"
+    F = "f"
+    C = "c"
+    P = "p"
     SHIFT = "shift"
     CTRL = "ctrl"
     F1 = "f1"
@@ -194,6 +198,10 @@ class WindowsInputHandler(InputHandler):
         Key.Q: ord("Q"),
         Key.E: ord("E"),
         Key.R: ord("R"),
+        Key.H: ord("H"),
+        Key.F: ord("F"),
+        Key.C: ord("C"),
+        Key.P: ord("P"),
         Key.SHIFT: 0x10,  # VK_SHIFT
         Key.CTRL: 0x11,  # VK_CONTROL
         # Function keys F1 to F12 (VK_F1 = 0x70 through VK_F12 = 0x7B)

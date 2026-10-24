@@ -5,10 +5,13 @@ Built on top of FormState and FormItem widgets.
 from sanctuary.core.state import Pop, Push, Quit
 from sanctuary.scenes.arena import Arena, ArenaSimulation
 from sanctuary.scenes.box import BouncingBoxState
+from sanctuary.scenes.grid_audit import GridAuditState
 from sanctuary.scenes.hammer import BouncingHammerState
 from sanctuary.scenes.snowfall.config import CALM_DRIFT_CONFIG
 from sanctuary.scenes.snowfall.state import SnowfallState
 from sanctuary.scenes.text_wave import RainbowTextState
+from sanctuary.scenes.overcoming import OvercomingState
+from sanctuary.scenes.orbital_window import OrbitalWindowState
 from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button
 
@@ -16,14 +19,17 @@ from sanctuary.ui.widgets import Button
 def create_main_menu() -> FormState:
     """Builds the canonical hierarchical menu structure for Sanctuary."""
 
-    def effects_menu() -> FormState:
+    def demos_menu() -> FormState:
         return FormState(
-            title="Effects menu",
+            title="Demos menu",
             items=[
                 Button("Rainbow Text Wave", Push(RainbowTextState())),
                 Button("Snowfall (5 Presets)", Push(SnowfallState(CALM_DRIFT_CONFIG))),
                 Button("Bouncing Hammer", Push(BouncingHammerState())),
                 Button("Bouncing Box", Push(BouncingBoxState())),
+                Button("Grid Audit (# Fill)", Push(GridAuditState())),
+                Button("Overcoming (Sine Flex)", lambda: Push(OvercomingState())),
+                Button("Orbital Window", lambda: Push(OrbitalWindowState())),
                 Button("Back", Pop()),
             ],
             on_cancel=Pop(),
@@ -34,7 +40,7 @@ def create_main_menu() -> FormState:
         items=[
             Button("Arena", Push(Arena())),
             Button("Arena simulation", Push(ArenaSimulation())),
-            Button("Effects", Push(effects_menu())),
+            Button("Demos", Push(demos_menu())),
             Button("Quit", Quit()),
         ],
         on_cancel=Quit(),
