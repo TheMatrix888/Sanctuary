@@ -2,6 +2,7 @@
 Application lifecycle manager for Sanctuary.
 Drives the central state stack, input polling, physics update, and differential rendering loop.
 """
+from sanctuary.core.config import DEFAULT_DISPLAY_CONFIG, DisplayConfig
 from sanctuary.core.input_handler import Key
 from sanctuary.core.platform import Platform
 from sanctuary.core.screen import Screen
@@ -10,8 +11,8 @@ from sanctuary.ui.telemetry import draw_telemetry_hud
 
 
 class App:
-    def __init__(self, platform: Platform):
-        self.screen = Screen(platform.terminal)
+    def __init__(self, platform: Platform, display_config: DisplayConfig = DEFAULT_DISPLAY_CONFIG):
+        self.screen = Screen(platform.terminal, config=display_config)
         self.clock = platform.clock
         self.dt = 0.0
         self.input_handler = platform.input_handler

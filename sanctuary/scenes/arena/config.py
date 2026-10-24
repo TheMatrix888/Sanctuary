@@ -4,8 +4,8 @@ Provides arena grid dimensions, zoom scaling configurations, and genetic simulat
 """
 
 # Spatial Grid Dimensions
-ARENA_WIDTH: int = 41
-ARENA_HEIGHT: int = 21
+ARENA_WIDTH: int = 61
+ARENA_HEIGHT: int = 31
 
 ZOOM_SCALES: list[tuple[int, int]] = [
     (1, 1),

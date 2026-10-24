@@ -7,11 +7,13 @@ from __future__ import annotations
 import sanctuary.core.ansi as ansi
 from sanctuary.core.geometry import Size
 from sanctuary.core.primitives import Surface, Color, Cell, DEFAULT_FG, DEFAULT_BG
+from sanctuary.core.config import DEFAULT_DISPLAY_CONFIG, DisplayConfig
 from sanctuary.core.terminal import Terminal
 
 
 class Screen:
     terminal: Terminal
+    config: DisplayConfig
     size: Size
     font_size: Size
     back_buffer: Surface
@@ -23,10 +25,30 @@ class Screen:
     _pending_chunks: list[str]
     max_frame_bytes: int | None
 
-    def __init__(self, terminal: Terminal, max_frame_bytes: int | None = 8192) -> None:
+    def __init__(
+            self,
+            terminal: Terminal,
+            config: DisplayConfig = DEFAULT_DISPLAY_CONFIG,
+            max_frame_bytes: int | None = None,
+    ) -> None:
         self.terminal = terminal
-        self.max_frame_bytes = max_frame_bytes
+        self.config = config
+        self.max_frame_bytes = max_frame_bytes or config.max_frame_bytes
+        self.apply_config(config)
         self.reset()
+
+    def apply_config(self, config: DisplayConfig) -> None:
+        """Cascades display configuration down to the hardware terminal driver."""
+        self.config = config
+        self.max_frame_bytes = config.max_frame_bytes
+        if hasattr(self.terminal, "set_title"):
+            self.terminal.set_title(config.title)
+        if hasattr(self.terminal, "set_font"):
+            self.terminal.set_font(font_name=config.font_name, font_size_height=config.font_size_height)
+        if hasattr(self.terminal, "set_size"):
+            self.terminal.set_size(columns=config.columns, rows=config.rows)
+        if hasattr(self.terminal, "set_icon"):
+            self.terminal.set_icon(config.icon_path)
 
     def reset(self, new_size: Size | None = None) -> None:
         """Initializes or resets double buffers and cursor state."""

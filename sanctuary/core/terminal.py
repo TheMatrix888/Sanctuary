@@ -100,6 +100,12 @@ class Terminal(Protocol):
     def set_font_size(self, height: int, width: int = 0) -> None:
         ...
 
+    def set_font(self, font_name: str, font_size_height: int) -> None:
+        ...
+
+    def set_icon(self, icon_path: str) -> bool:
+        ...
+
     def get_title(self) -> str:
         ...
 
@@ -207,6 +213,14 @@ class VirtualTerminal:
         """Updates simulated font dimensions."""
         self.font_height = height
         self.font_width = width if width > 0 else max(1, height // 2)
+
+    def set_font(self, font_name: str = "Cascadia Mono", font_size_height: int = 24, bold: bool = False) -> None:
+        """Updates simulated font dimensions."""
+        self.set_font_size(font_size_height)
+
+    def set_icon(self, icon_path: str = "resources/icons/shiro.ico") -> bool:
+        """Simulated icon setter."""
+        return True
 
     def get_title(self) -> str:
         """Returns simulated title."""
@@ -316,6 +330,51 @@ class WindowsTerminal:
     _saved_windowed_rows: int
     _saved_windowed_font_height: int
 
+    def __init__(
+            self,
+            columns: int = 140,
+            rows: int = 40,
+            title: str = "Sanctuary [Shiro]",
+            font_name: str = "Cascadia Mono",
+            font_size_height: int = 24,
+            icon_path: str = "resources/icons/shiro.ico",
+    ) -> None:
+        # Win32 system handles and loaded kernel/user libraries
+        self.kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        self.user32 = ctypes.WinDLL("user32", use_last_error=True)
+        self._init_win32_signatures()
+
+        self.stdin_handle = self.kernel32.GetStdHandle(STDIN_PSEUDO_HANDLE)
+        self._conout_handle = self.kernel32.CreateFileW("CONOUT$", 0xC0000000, 3, None, 3, 0, None)
+        if self._conout_handle and self._conout_handle != -1:
+            self.stdout_handle = self._conout_handle
+        else:
+            self._conout_handle = None
+            self.stdout_handle = self.kernel32.GetStdHandle(STDOUT_PSEUDO_HANDLE)
+        self.hwnd = self.kernel32.GetConsoleWindow()
+
+        # State tracking fields
+        self._cursor_visible = False
+        self._was_fullscreen = False
+        self._saved_windowed_cols = columns
+        self._saved_windowed_rows = rows
+        self._saved_windowed_font_height = font_size_height
+
+        # 1. One-time private system setup
+        self._force_utf8()
+        self._set_code_page()
+        self._enable_ansi()
+        self._disable_quick_edit()
+
+        # 2. Public runtime window geometry and styles
+        self.columns = columns
+        self.rows = rows
+        self.set_title(title)
+        self.set_font(font_name=font_name, font_size_height=font_size_height)
+        self.set_size(columns=columns, rows=rows)
+        self.set_icon(icon_path)
+        self.reset()
+
     # =========================================================================
     # PRIVATE INITIALIZATION METHODS (One-time startup configuration)
     # =========================================================================
@@ -417,6 +476,23 @@ class WindowsTerminal:
             self.kernel32.SetConsoleScreenBufferSize(self.stdout_handle, _pack_coord(columns, rows))
         except Exception:
             pass
+
+        # 4. Synchronize physical outer Win32 window frame in windowed mode
+        if self.hwnd and not self.is_fullscreen_or_maximized():
+            try:
+                font_sz = self.get_font_size()
+                fw = max(1, font_sz.width)
+                fh = max(1, font_sz.height)
+                rect = wintypes.RECT(0, 0, columns * fw, rows * fh)
+                style = self.user32.GetWindowLongW(self.hwnd, -16)  # GWL_STYLE
+                ex_style = self.user32.GetWindowLongW(self.hwnd, -20)  # GWL_EXSTYLE
+                self.user32.AdjustWindowRectEx(ctypes.byref(rect), style, False, ex_style)
+                outer_w = rect.right - rect.left
+                outer_h = rect.bottom - rect.top
+                # SWP_NOMOVE (0x2) | SWP_NOZORDER (0x4) | SWP_NOACTIVATE (0x10) | SWP_FRAMECHANGED (0x20)
+                self.user32.SetWindowPos(self.hwnd, None, 0, 0, outer_w, outer_h, 0x0036)
+            except Exception:
+                pass
 
         # Final buffer clamp to eliminate scrollbars
         self.clamp_buffer_to_window()
@@ -576,7 +652,7 @@ class WindowsTerminal:
                 font_sz = self.get_font_size()
                 fw = max(1, font_sz.width)
                 fh = max(1, font_sz.height)
-                rect = wintypes.RECT(0, 0, self._saved_windowed_cols * fw + 24, self._saved_windowed_rows * fh + 16)
+                rect = wintypes.RECT(0, 0, self._saved_windowed_cols * fw, self._saved_windowed_rows * fh)
                 style = self.user32.GetWindowLongW(self.hwnd, -16)  # GWL_STYLE
                 ex_style = self.user32.GetWindowLongW(self.hwnd, -20)  # GWL_EXSTYLE
                 self.user32.AdjustWindowRectEx(ctypes.byref(rect), style, False, ex_style)
@@ -758,47 +834,3 @@ class WindowsTerminal:
     # CONSTRUCTOR
     # =========================================================================
 
-    def __init__(
-            self,
-            columns: int = 120,
-            rows: int = 30,
-            title: str = "Sanctuary [Shiro]",
-            font_name: str = "Cascadia Mono",
-            font_size_height: int = 24,
-            icon_path: str = "resources/icons/shiro.ico",
-    ) -> None:
-        # Win32 system handles and loaded kernel/user libraries
-        self.kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        self.user32 = ctypes.WinDLL("user32", use_last_error=True)
-        self._init_win32_signatures()
-
-        self.stdin_handle = self.kernel32.GetStdHandle(STDIN_PSEUDO_HANDLE)
-        self._conout_handle = self.kernel32.CreateFileW("CONOUT$", 0xC0000000, 3, None, 3, 0, None)
-        if self._conout_handle and self._conout_handle != -1:
-            self.stdout_handle = self._conout_handle
-        else:
-            self._conout_handle = None
-            self.stdout_handle = self.kernel32.GetStdHandle(STDOUT_PSEUDO_HANDLE)
-        self.hwnd = self.kernel32.GetConsoleWindow()
-
-        # State tracking fields
-        self._cursor_visible = False
-        self._was_fullscreen = False
-        self._saved_windowed_cols = columns
-        self._saved_windowed_rows = rows
-        self._saved_windowed_font_height = font_size_height
-
-        # 1. One-time private system setup
-        self._force_utf8()
-        self._set_code_page()
-        self._enable_ansi()
-        self._disable_quick_edit()
-
-        # 2. Public runtime window geometry and styles
-        self.columns = columns
-        self.rows = rows
-        self.set_title(title)
-        self.set_font(font_name=font_name, font_size_height=font_size_height)
-        self.set_size(columns=columns, rows=rows)
-        self.set_icon(icon_path)
-        self.reset()

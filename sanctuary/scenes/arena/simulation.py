@@ -168,7 +168,7 @@ class ArenaSimulation(FormState):
             fg_color=status_fg,
         )
 
-        x_start, y_start = 50, 3
+        x_start, y_start = 55, 3
         if self.last_snapshot and self.is_running:
             snapshot = self.last_snapshot
             snapshot.tilemap.draw(screen, x_start, y_start)
