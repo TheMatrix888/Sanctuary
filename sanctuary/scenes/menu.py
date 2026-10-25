@@ -4,14 +4,16 @@ Built on top of FormState and FormItem widgets.
 """
 from sanctuary.core.state import Pop, Push, Quit
 from sanctuary.scenes.arena import Arena, ArenaSimulation
-from sanctuary.scenes.box import BouncingBoxState
-from sanctuary.scenes.grid_audit import GridAuditState
-from sanctuary.scenes.hammer import BouncingHammerState
+from sanctuary.scenes.demos import (
+    BouncingBoxState,
+    BouncingHammerState,
+    GridAuditState,
+    OrbitalWindowState,
+    OvercomingState,
+    RainbowTextState,
+)
 from sanctuary.scenes.snowfall.config import CALM_DRIFT_CONFIG
 from sanctuary.scenes.snowfall.state import SnowfallState
-from sanctuary.scenes.text_wave import RainbowTextState
-from sanctuary.scenes.overcoming import OvercomingState
-from sanctuary.scenes.orbital_window import OrbitalWindowState
 from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button
 
