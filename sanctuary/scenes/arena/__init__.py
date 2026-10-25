@@ -26,6 +26,7 @@ from .gladiator import (
 )
 from .simulation import ArenaSimulation
 from .worker import (
+    GenerationRecord,
     Mode,
     PlaybackSettings,
     WorldConfig,
@@ -74,6 +75,7 @@ __all__ = [
     "FLOOR",
     "FLOOR_TEXTURE",
     "GENOME_SIZE",
+    "GenerationRecord",
     "Gladiator",
     "Mode",
     "PlaybackSettings",

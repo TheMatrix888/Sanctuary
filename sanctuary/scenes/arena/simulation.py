@@ -14,10 +14,11 @@ from sanctuary.core.state import Command, Pop
 from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button, ChoiceKnob, Header, Knob, Spacer
 
-from .config import ARENA_HEIGHT, ARENA_WIDTH
+from .config import ARENA_HEIGHT, ARENA_WIDTH, GPS_METRICS_INTERVAL
 from .generators import ARENA_PRESETS
 from .tile_map import TileMap
 from .worker import (
+    GenerationRecord,
     Mode,
     PlaybackSettings,
     Snapshot,
@@ -43,7 +44,7 @@ class ArenaSimulation(FormState):
     save_button: Button
     back_button: Button
     process: Process | None
-    queue: Queue
+    snapshot_queue: Queue
     playback_queue: Queue
     stop_event: EventType
     last_snapshot: Snapshot | None
@@ -57,7 +58,7 @@ class ArenaSimulation(FormState):
 
     def __init__(self) -> None:
         self.is_running = False
-        self.queue = Queue(maxsize=2)
+        self.snapshot_queue = Queue(maxsize=2)
         self.playback_queue = Queue(maxsize=10)
         self.stop_event = Event()
         self.process = None
@@ -82,7 +83,7 @@ class ArenaSimulation(FormState):
     def _build_widgets(self) -> None:
         """Instantiates compact form widgets, knobs, and decorative section headers."""
         self.sim_button = Button("Start simulation", action=self._toggle_simulation)
-        self.setup_header = Header("--- Simulation Setup ---", color=Color(140, 180, 240))
+        self.setup_header = Header("--- Simulation Setup ---", color=Color(245, 110, 115))
         self.live_header = Header("--- Active Simulation Controls ---", color=Color(80, 255, 120))
 
         self.entities_knob = Knob.integer("Entities per team", value=10, min_value=1, max_value=20, suffix="entities")
@@ -96,7 +97,7 @@ class ArenaSimulation(FormState):
         self.back_button = Button("Back", action=Pop())
 
     def update_map_preview(self) -> None:
-        self.current_map = self.map_knob.current_value
+        self.current_map = self.map_knob.value
         self.map_preview = ARENA_PRESETS[self.current_map](ARENA_WIDTH, ARENA_HEIGHT)
 
     def _update_active_items(self) -> None:
@@ -128,14 +129,14 @@ class ArenaSimulation(FormState):
         """Extracts immutable configuration parameters for tournament genesis."""
         return WorldConfig(
             entities_per_team=int(self.entities_knob.value),
-            map=self.map_knob.current_value,
+            map=self.map_knob.value,
         )
 
     def gather_playback_settings(self) -> PlaybackSettings:
         """Extracts dynamic playback pacing parameters from interactive controls."""
         return PlaybackSettings(
             snapshots_per_second=self.fps_knob.value,
-            mode=Mode(self.mode_knob.current_value),
+            mode=Mode(self.mode_knob.value),
         )
 
     def _toggle_simulation(self) -> Command | None:
@@ -156,7 +157,7 @@ class ArenaSimulation(FormState):
                     world_config,
                     playback_settings,
                     self.playback_queue,
-                    self.queue,
+                    self.snapshot_queue,
                     self.stop_event,
                 ),
             )
@@ -178,11 +179,11 @@ class ArenaSimulation(FormState):
 
     def update(self, dt: float, screen_size: Size) -> None:
         super().update(dt, screen_size)
-        if not self.queue.empty():
-            self.last_snapshot = self.queue.get()
+        if not self.snapshot_queue.empty():
+            self.last_snapshot = self.snapshot_queue.get()
             now = time.perf_counter()
             elapsed = now - self._last_gps_time
-            if elapsed >= 0.5:
+            if elapsed >= GPS_METRICS_INTERVAL:
                 delta_gen = self.last_snapshot.generation - self._last_gps_generation
                 self.gps = max(0.0, delta_gen / elapsed)
                 self._last_gps_time = now
@@ -190,7 +191,7 @@ class ArenaSimulation(FormState):
 
         if self.is_running:
             current_fps = self.fps_knob.value
-            current_mode = self.mode_knob.current_value
+            current_mode = self.mode_knob.value
             if current_fps != self._last_fps or current_mode != self._last_mode:
                 self._last_fps = current_fps
                 self._last_mode = current_mode
@@ -200,20 +201,21 @@ class ArenaSimulation(FormState):
                 except queue.Full:
                     pass
 
-        if self.current_map != self.map_knob.current_value:
+        if self.current_map != self.map_knob.value:
             self.update_map_preview()
 
     def draw(self, screen: Screen) -> None:
         super().draw(screen)
 
+        mode = self.mode_knob.value
+
         status_y = screen.size.rows - 2
         if self.is_running:
-            mode_enum = Mode(self.mode_knob.current_value)
-            status_badge = f"[{mode_enum.value.upper()}]"
-            status_fg = Color(80, 255, 120) if mode_enum is not Mode.PAUSE else Color(255, 200, 80)
+            status_badge = f"[{mode.upper()}]"
+            status_fg = Color(80, 255, 120) if mode != Mode.PAUSE else Color(255, 200, 80)
         else:
             status_badge = "[STOPPED]"
-            status_fg = Color(160, 160, 180)
+            status_fg = Color(245, 110, 115)
 
         status_text = f" Simulation State: {status_badge}"
         screen.draw_text(
@@ -231,10 +233,8 @@ class ArenaSimulation(FormState):
                 for gladiator in team:
                     gladiator.draw(screen, x_start, y_start)
 
-            if self.gps >= 10:
-                gps_suffix = f" ({int(round(self.gps))} gen/s)"
-            elif self.gps > 0:
-                gps_suffix = f" ({self.gps:.1f} gen/s)"
+            if self.gps > 0 and mode == Mode.SIMULATION:
+                gps_suffix = f" ({self.gps:.0f} gen/s)"
             else:
                 gps_suffix = ""
 
@@ -242,13 +242,13 @@ class ArenaSimulation(FormState):
             screen.draw_text(
                 x_start,
                 y_info,
-                f"turn {snapshot.turn} | generation {snapshot.generation}{gps_suffix}",
+                f"generation {snapshot.generation}{gps_suffix} | turn {snapshot.turn}",
                 fg_color=status_fg,
             )
             screen.draw_text(
                 x_start,
                 y_info + 1,
-                f"best generation {snapshot.longest_generation[0]} [{snapshot.longest_generation[1]} turns]",
+                f"best generation {snapshot.record.generation} [{snapshot.record.survivors} alive, {snapshot.record.turns} turns]",
                 fg_color=status_fg,
             )
         else:

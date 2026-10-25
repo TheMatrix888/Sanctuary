@@ -124,13 +124,13 @@ class ChoiceKnob(FormItem):
             self.index = self.index % len(self.values)
 
     @property
-    def current_value(self) -> str:
+    def value(self) -> str:
         if 0 <= self.index < len(self.values):
             return self.values[self.index]
         return ""
 
     def render_value(self) -> str:
-        return f"[{self.current_value}]"
+        return f"[{self.value}]"
 
     def on_adjust(self, delta: int, multiplier: float = 1.0) -> None:
         if self.values:

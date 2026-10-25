@@ -51,13 +51,21 @@ MOVE_DELTAS: tuple[tuple[int, int], ...] = (
 
 
 @dataclass(slots=True, frozen=True)
+class GenerationRecord:
+    """Historical benchmark record tracking generation longevity and survivability."""
+    generation: int
+    turns: int
+    survivors: int
+
+
+@dataclass(slots=True, frozen=True)
 class Snapshot:
     """Inter-process state telemetry sent from simulation worker to UI screen."""
     teams: list[list[Gladiator]]
     tilemap: TileMap
     turn: int
     generation: int
-    longest_generation: tuple[int, int]
+    record: GenerationRecord
 
 
 @dataclass(slots=True, frozen=True)
@@ -98,7 +106,7 @@ class SimulationWorker:
     turn: int
     max_turns: int
     dead_gladiators: int
-    longest_generation: tuple[int, int]
+    record: GenerationRecord
 
     def __init__(
             self,
@@ -168,9 +176,11 @@ class SimulationWorker:
         center_y = ARENA_HEIGHT // 2
 
         # 1. Final epoch scoring (survival and center proximity benchmarks)
+        survivors = 0
         for gladiator in self.red_team + self.blue_team:
             if gladiator.hp > 0:
                 gladiator.score += SURVIVAL_BONUS
+                survivors += 1
 
             spawn_dist = abs(gladiator.spawn_x - center_x) + abs(gladiator.spawn_y - center_y)
             approach_progress = max(0, spawn_dist - gladiator.min_distance)
@@ -210,8 +220,12 @@ class SimulationWorker:
         mutate(self.blue_team)
 
         # 5. Record generation records and reset telemetry
-        if self.turn > self.longest_generation[1]:
-            self.longest_generation = (self.generation, self.turn)
+        if self.turn > self.record.turns or (self.turn == self.record.turns and survivors > self.record.survivors):
+            self.record = GenerationRecord(
+                generation=self.generation,
+                turns=self.turn,
+                survivors=survivors,
+            )
 
         self.dead_gladiators = 0
         self.turn = 0
@@ -229,7 +243,7 @@ class SimulationWorker:
         self.position_teams()
         self.generation = 1
         self.turn = 0
-        self.longest_generation = (1, 0)
+        self.record = GenerationRecord(generation=1, turns=0, survivors=0)
         self.dead_gladiators = 0
         self.max_turns = MAX_GENERATION_TURNS
 
@@ -306,7 +320,7 @@ class SimulationWorker:
             tilemap=self.tilemap,
             turn=self.turn,
             generation=self.generation,
-            longest_generation=self.longest_generation,
+            record=self.record,
         )
         if self.snapshot_queue.full():
             try:
