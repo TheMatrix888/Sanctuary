@@ -23,7 +23,6 @@ from .config import (
     BEST_PER_GENERATION,
     GPS_METRICS_INTERVAL,
     MAX_GENERATION_TURNS,
-    MUTATION_GENES_COUNT,
     MUTATION_RATE_PERCENT,
 )
 from .generators import ARENA_PRESETS
@@ -51,7 +50,6 @@ class ArenaSimulation(FormState):
     max_turns_knob: Knob
     champions_knob: Knob
     mutation_rate_knob: Knob
-    mutation_genes_knob: Knob
     exclusion_width_knob: Knob
     exclusion_height_knob: Knob
     exclusion_blink_toggle: Toggle
@@ -145,19 +143,14 @@ class ArenaSimulation(FormState):
             max_value=int(self.entities_knob.value),
             suffix="champions",
         )
-        self.mutation_rate_knob = Knob.integer(
-            "Mutation rate",
+        self.mutation_rate_knob = Knob(
+            "Gene mutation rate",
             value=MUTATION_RATE_PERCENT,
-            min_value=0,
-            max_value=100,
+            min_value=0.0,
+            max_value=100.0,
+            delta=0.5,
+            precision=1,
             suffix="%",
-        )
-        self.mutation_genes_knob = Knob.integer(
-            "Mutated genes",
-            value=MUTATION_GENES_COUNT,
-            min_value=1,
-            max_value=16,
-            suffix="genes",
         )
 
         self.load_button = Button("Load genome [WIP]")
@@ -195,7 +188,6 @@ class ArenaSimulation(FormState):
                 self.max_turns_knob,
                 self.champions_knob,
                 self.mutation_rate_knob,
-                self.mutation_genes_knob,
                 Spacer(),
                 self.load_button,
                 self.back_button,
@@ -209,8 +201,7 @@ class ArenaSimulation(FormState):
             map=self.map_knob.value,
             max_turns=int(self.max_turns_knob.value),
             best_per_generation=int(self.champions_knob.value),
-            mutation_rate_percent=int(self.mutation_rate_knob.value),
-            mutation_genes_count=int(self.mutation_genes_knob.value),
+            mutation_rate_percent=float(self.mutation_rate_knob.value),
             exclusion_width=int(self.exclusion_width_knob.value),
             exclusion_height=int(self.exclusion_height_knob.value),
         )

@@ -24,8 +24,7 @@ MAX_VM_ACTIONS_PER_TICK: int = 15
 
 # Evolution & Tournament Hyperparameters
 BEST_PER_GENERATION: int = 4
-MUTATION_RATE_PERCENT: int = 8
-MUTATION_GENES_COUNT: int = 3
+MUTATION_RATE_PERCENT: float = 2.0
 MAX_GENERATION_TURNS: int = 500
 
 # Scoring & Environmental Multipliers

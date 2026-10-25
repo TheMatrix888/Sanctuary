@@ -15,8 +15,7 @@ def test_arena_simulation_widgets_and_config() -> None:
     assert sim.entities_knob.value == 10
     assert sim.max_turns_knob.value == 500
     assert sim.champions_knob.value == 4
-    assert sim.mutation_rate_knob.value == 8
-    assert sim.mutation_genes_knob.value == 3
+    assert sim.mutation_rate_knob.value == 2.0
     assert sim.exclusion_width_knob.value == 20
     assert sim.exclusion_height_knob.value == 10
     assert sim.exclusion_blink_toggle.value is True
@@ -25,8 +24,7 @@ def test_arena_simulation_widgets_and_config() -> None:
     sim.entities_knob.on_adjust(1, multiplier=1.0)
     sim.max_turns_knob.on_adjust(1, multiplier=1.0)
     sim.champions_knob.on_adjust(1, multiplier=1.0)
-    sim.mutation_rate_knob.on_adjust(-1, multiplier=1.0)
-    sim.mutation_genes_knob.on_adjust(1, multiplier=1.0)
+    sim.mutation_rate_knob.on_adjust(1, multiplier=1.0)
     sim.exclusion_width_knob.on_adjust(2, multiplier=1.0)
     sim.exclusion_height_knob.on_adjust(-1, multiplier=1.0)
     sim.exclusion_blink_toggle.on_adjust(1, multiplier=1.0)
@@ -36,8 +34,7 @@ def test_arena_simulation_widgets_and_config() -> None:
     assert config.entities_per_team == 11
     assert config.max_turns == 510
     assert config.best_per_generation == 5
-    assert config.mutation_rate_percent == 7
-    assert config.mutation_genes_count == 4
+    assert config.mutation_rate_percent == 2.5
     assert config.exclusion_width == 22
     assert config.exclusion_height == 9
     assert sim.exclusion_blink_toggle.value is False

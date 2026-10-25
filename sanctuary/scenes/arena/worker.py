@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from multiprocessing import Queue
 from multiprocessing.synchronize import Event as EventType
-from random import randint, sample
+from random import randint, random, sample
 
 from sanctuary.core.geometry import Point, Rect
 
@@ -25,7 +25,6 @@ from .config import (
     GENOME_SIZE,
     MAX_GENERATION_TURNS,
     MAX_VM_ACTIONS_PER_TICK,
-    MUTATION_GENES_COUNT,
     MUTATION_RATE_PERCENT,
     SURVIVAL_BONUS,
 )
@@ -84,8 +83,7 @@ class WorldConfig:
     map: str
     max_turns: int = MAX_GENERATION_TURNS
     best_per_generation: int = BEST_PER_GENERATION
-    mutation_rate_percent: int = MUTATION_RATE_PERCENT
-    mutation_genes_count: int = MUTATION_GENES_COUNT
+    mutation_rate_percent: float = MUTATION_RATE_PERCENT
     exclusion_width: int = EXCLUSION_WIDTH
     exclusion_height: int = EXCLUSION_HEIGHT
 
@@ -225,17 +223,18 @@ class SimulationWorker:
         reproduce(self.red_team, red_champion_genomes)
         reproduce(self.blue_team, blue_champion_genomes)
 
-        # 4. Point mutations: preserve top champion (index 0) intact, mutate descendants
-        def mutate(team: list[Gladiator]) -> None:
-            for gladiator in team[1:]:
-                if randint(1, 100) <= self.config.mutation_rate_percent:
-                    mutation_indices = sample(range(GENOME_SIZE), self.config.mutation_genes_count)
-                    mutation_values = [randint(0, GENOME_SIZE - 1) for _ in range(self.config.mutation_genes_count)]
-                    for idx, val in zip(mutation_indices, mutation_values):
-                        gladiator.genome[idx] = val
+        # 4. Uniform per-gene point mutations: preserve top champion (index 0) intact
+        mutation_probability = self.config.mutation_rate_percent / 100.0
+        if mutation_probability > 0.0:
+            def mutate(team: list[Gladiator]) -> None:
+                for gladiator in team[1:]:
+                    genome = gladiator.genome
+                    for gene_index in range(GENOME_SIZE):
+                        if random() < mutation_probability:
+                            genome[gene_index] = randint(0, GENOME_SIZE - 1)
 
-        mutate(self.red_team)
-        mutate(self.blue_team)
+            mutate(self.red_team)
+            mutate(self.blue_team)
 
         # 5. Record generation records and reset telemetry
         if self.turn > self.record.turns or (self.turn == self.record.turns and survivors > self.record.survivors):
