@@ -465,6 +465,9 @@ class WindowsTerminal:
         In fullscreen or maximized mode, returns true screen character capacity
         clamped to the display resolution and current font size.
         """
+        if self.hwnd and self.user32.IsIconic(self.hwnd):
+            return Size(width=max(MIN_COLUMNS, self._saved_windowed_cols), height=max(MIN_ROWS, self._saved_windowed_rows))
+
         if self.is_fullscreen_or_maximized():
             max_size = self.get_max_size()
             if max_size.width > 0 and max_size.height > 0:
@@ -883,8 +886,11 @@ class WindowsTerminal:
 
     def write(self, text: str) -> None:
         """Fast direct text output to stdout stream with immediate buffer flush."""
-        sys.stdout.write(text)
-        sys.stdout.flush()
+        try:
+            sys.stdout.write(text)
+            sys.stdout.flush()
+        except OSError:
+            pass
 
     def clear(self) -> None:
         """Clears screen and repositions cursor to home position (1;1)."""
@@ -916,9 +922,11 @@ class WindowsTerminal:
                 pass
 
         # 2. If buffer dimensions don't match visible rect exactly, clamp buffer
-        if buffer_info.dwSize.X != actual_cols or buffer_info.dwSize.Y != actual_rows:
+        buf_cols = max(MIN_COLUMNS, actual_cols)
+        buf_rows = max(MIN_ROWS, actual_rows)
+        if buffer_info.dwSize.X != buf_cols or buffer_info.dwSize.Y != buf_rows:
             try:
-                self.kernel32.SetConsoleScreenBufferSize(self.stdout_handle, _pack_coord(actual_cols, actual_rows))
+                self.kernel32.SetConsoleScreenBufferSize(self.stdout_handle, _pack_coord(buf_cols, buf_rows))
             except Exception:
                 pass
 
@@ -930,9 +938,10 @@ class WindowsTerminal:
         Enforces pixel-perfect alignment of the outer OS window frame to exact integer
         character cell multiples, and clamps dimensions to the empirical Conhost
         stability threshold (MIN_COLUMNS x MIN_ROWS).
+        Uses magnetic round() interpolation for natural drag snapping.
         Returns True if geometry was adjusted.
         """
-        if not self.hwnd or self.is_fullscreen_or_maximized():
+        if not self.hwnd or self.is_fullscreen_or_maximized() or self.user32.IsIconic(self.hwnd):
             return False
 
         try:
@@ -948,8 +957,8 @@ class WindowsTerminal:
             fw = max(1, font_sz.width)
             fh = max(1, font_sz.height)
 
-            cols = cli_w // fw
-            rows = cli_h // fh
+            cols = round(cli_w / fw)
+            rows = round(cli_h / fh)
 
             target_cols = max(MIN_COLUMNS, cols)
             target_rows = max(MIN_ROWS, rows)
