@@ -25,6 +25,7 @@ class Screen:
     _pending_chunks: list[str]
     max_frame_bytes: int | None
     _force_full_redraw: bool
+    bg_color: Color
 
     def __init__(
             self,
@@ -35,6 +36,7 @@ class Screen:
         self.terminal = terminal
         self.config = config
         self.max_frame_bytes = max_frame_bytes or config.max_frame_bytes
+        self.bg_color = DEFAULT_BG
         self.apply_config(config)
         self.reset()
 
@@ -51,8 +53,10 @@ class Screen:
         if hasattr(self.terminal, "set_icon"):
             self.terminal.set_icon(config.icon_path)
 
-    def reset(self, new_size: Size | None = None) -> None:
+    def reset(self, new_size: Size | None = None, bg_color: Color | None = None) -> None:
         """Initializes or resets double buffers and cursor state."""
+        target_bg = bg_color or getattr(self, "bg_color", DEFAULT_BG)
+        self.bg_color = target_bg
         self.size = new_size or self.terminal.get_size()
         self.font_size = self.terminal.get_font_size()
         self.back_buffer = Surface.empty(self.size)
@@ -62,14 +66,15 @@ class Screen:
                 row[i] = Cell(char="", fg_color=None, bg_color=None)
         self.last_x, self.last_y = -2, -2
         self.last_fg = None
-        self.last_bg = None
+        self.last_bg = target_bg
         self._pending_chunks = []
         self._force_full_redraw = True
         self.terminal.hide_cursor()
-        self.terminal.reset()
+        self.terminal.reset(bg_color=target_bg)
 
     def clear(self, fill_cell: Cell = Cell(" ")) -> None:
         """Clears the back buffer canvas for a new frame."""
+        self.bg_color = fill_cell.bg_color
         self.back_buffer.clear(fill_cell)
 
     def draw_text(
@@ -228,18 +233,6 @@ class Screen:
             return True
         return False
 
-    def resize(self, new_size: Size) -> None:
-        """Reallocates back and front buffers to match new terminal dimensions without full terminal reset."""
-        self.size = new_size
-        self.font_size = self.terminal.get_font_size()
-        self.back_buffer = Surface.empty(self.size)
-        self.front_buffer = Surface.empty(self.size)
-        for row in self.front_buffer.cells:
-            for i in range(len(row)):
-                row[i] = Cell(char="", fg_color=None, bg_color=None)
-        self.last_x, self.last_y = -2, -2
-        self.last_fg = None
-        self.last_bg = None
-        self._pending_chunks = []
-        self._force_full_redraw = True
-        self.terminal.hide_cursor()
+    def resize(self, new_size: Size, bg_color: Color | None = None) -> None:
+        """Reallocates back and front buffers to match new terminal dimensions and clears hardware terminal."""
+        self.reset(new_size, bg_color=bg_color)

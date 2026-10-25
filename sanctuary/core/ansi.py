@@ -49,13 +49,15 @@ def resize_window(rows: int, columns: int) -> str:
     return f"\033[8;{rows};{columns}t"
 
 
-def reset_terminal_sequence() -> str:
+def reset_terminal_sequence(bg_color_val: Color | None = None) -> str:
     """
     Composite reset sequence:
     1. Resets active brush and text attributes (RESET_ATTRIBUTES).
-    2. Hides the text cursor to prevent visual flicker (HIDE_CURSOR).
-    3. Disables terminal line auto-wrap to prevent scrolling on bottom-right cell writes (DISABLE_AUTO_WRAP).
-    4. Clears the screen (CLEAR_SCREEN).
-    5. Repositions cursor to home position 1;1 (CURSOR_HOME).
+    2. If bg_color_val is provided, sets background brush so screen clear fills with that target tint.
+    3. Hides the text cursor to prevent visual flicker (HIDE_CURSOR).
+    4. Disables terminal line auto-wrap to prevent scrolling on bottom-right cell writes (DISABLE_AUTO_WRAP).
+    5. Clears the screen (CLEAR_SCREEN).
+    6. Repositions cursor to home position 1;1 (CURSOR_HOME).
     """
-    return f"{RESET_ATTRIBUTES}{HIDE_CURSOR}{DISABLE_AUTO_WRAP}{CLEAR_SCREEN}{CURSOR_HOME}"
+    bg_seq = bg_color(bg_color_val) if bg_color_val is not None else ""
+    return f"{RESET_ATTRIBUTES}{bg_seq}{HIDE_CURSOR}{DISABLE_AUTO_WRAP}{CLEAR_SCREEN}{CURSOR_HOME}"

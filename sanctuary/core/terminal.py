@@ -12,6 +12,7 @@ from typing import Protocol
 
 import sanctuary.core.ansi as ansi
 from sanctuary.core.geometry import Size
+from sanctuary.core.primitives import Color
 
 # --- Win32 Standard Handles ---
 STDIN_PSEUDO_HANDLE = -10
@@ -160,7 +161,7 @@ class Terminal(Protocol):
     def clear(self) -> None:
         ...
 
-    def reset(self) -> None:
+    def reset(self, bg_color: Color | None = None) -> None:
         ...
 
     def close(self) -> None:
@@ -328,10 +329,10 @@ class VirtualTerminal:
         """Emits standard clear ANSI sequence to memory stream."""
         self.captured_stream.append(ansi.CLEAR_SCREEN + ansi.CURSOR_HOME)
 
-    def reset(self) -> None:
+    def reset(self, bg_color: Color | None = None) -> None:
         """Resets stream attributes, clears simulated screen, and hides cursor."""
         self._cursor_visible = False
-        self.captured_stream.append(ansi.reset_terminal_sequence())
+        self.captured_stream.append(ansi.reset_terminal_sequence(bg_color_val=bg_color))
 
     def get_output(self) -> str:
         """Joins and returns the entire captured output stream."""
@@ -941,15 +942,15 @@ class WindowsTerminal:
             except Exception:
                 pass
 
-    def reset(self) -> None:
+    def reset(self, bg_color: Color | None = None) -> None:
         """
         Resets terminal graphics state:
         1. Clamps Win32 buffer to window to eliminate scrollbars.
-        2. Resets brush, hides cursor, clears screen, and homes cursor.
+        2. Resets brush, applies background color if specified, hides cursor, clears screen, and homes cursor.
         """
         self.clamp_buffer_to_window()
         self._cursor_visible = False
-        self.write(ansi.reset_terminal_sequence())
+        self.write(ansi.reset_terminal_sequence(bg_color_val=bg_color))
 
     def _init_win32_signatures(self) -> None:
         """Sets explicit ctypes signatures to prevent 64-bit ABI register mismatches."""

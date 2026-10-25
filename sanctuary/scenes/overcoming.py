@@ -2,6 +2,7 @@
 Window overcoming demonstration scene (измученное превозмогание).
 Features a centered toggle button card and 4 corner bracket surfaces that illustrate
 window geometry breathing via sinusoidal modulation with desktop display centering.
+Applies target background tinting to hardware terminal resets, eliminating black background strobing.
 """
 import math
 import time
@@ -13,6 +14,8 @@ from sanctuary.core.primitives import Cell, Color, Surface
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import Command, Pop, State, ToggleMetrics
 from sanctuary.core.terminal import Terminal
+
+OVERCOMING_BG = Color(14, 16, 22)
 
 # --- ASCII Art Surfaces ---
 
@@ -32,7 +35,7 @@ CARD_ACTIVE_ART = """
 ├────────────────┤
 │ [*] STRUGGLING │
 │                │
-│ [Space] Stop   │
+│ [Space] Toggle │
 └────────────────┘
 """
 
@@ -155,7 +158,7 @@ class OvercomingState(State):
         if target_width != cur_size.columns or target_height != cur_size.rows:
             self.terminal.set_size(target_width, target_height, center=True)
             if self._screen:
-                self._screen.resize(Size(target_width, target_height))
+                self._screen.resize(Size(target_width, target_height), bg_color=OVERCOMING_BG)
 
     def draw(self, screen: Screen) -> None:
         self._screen = screen
@@ -167,8 +170,7 @@ class OvercomingState(State):
         rows = screen.size.rows
 
         # Dark sleek canvas
-        bg_color = Color(14, 16, 22)
-        screen.clear(Cell(" ", Color(200, 200, 200), bg_color))
+        screen.clear(Cell(" ", Color(200, 200, 200), OVERCOMING_BG))
 
         # 1. Four corner surfaces anchored to viewport boundaries
         screen.draw_surface(0, 0, self.corner_tl)
