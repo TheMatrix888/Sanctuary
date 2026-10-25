@@ -7,6 +7,10 @@ Provides arena grid dimensions, zoom scaling configurations, and genetic simulat
 ARENA_WIDTH: int = 61
 ARENA_HEIGHT: int = 31
 
+# Central Exclusion Zone (Anti-Camp Buffer)
+EXCLUSION_WIDTH: int = ARENA_WIDTH // 3
+EXCLUSION_HEIGHT: int = ARENA_HEIGHT // 3
+
 ZOOM_SCALES: list[tuple[int, int]] = [
     (1, 1),
     (2, 1),

@@ -151,7 +151,7 @@ def generate_tectonic_chasm(width: int, height: int) -> TileMap:
 
             # Defensive cover pillars on either side of the chasm
             is_cover_pillar = abs(relative_x) == 5 and relative_y % 3 == 0
-            is_blood_floor = relative_x == 0 and relative_y == 0
+            is_blood_floor = abs(relative_x) <= 1 and abs(relative_y) <= 1
 
             if is_boundary or is_cover_pillar:
                 row.append(WALL)

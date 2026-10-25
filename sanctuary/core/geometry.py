@@ -2,7 +2,7 @@
 Spatial and geometric primitives for the Sanctuary engine.
 Provides fundamental immutable types for 2D terminal coordinates, dimensions, and bounding boxes.
 """
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import NamedTuple
 
 
@@ -44,6 +44,68 @@ class Size(NamedTuple):
 
     def __str__(self) -> str:
         return f"{self.width}x{self.height} ({self.total_cells:,} cells)"
+
+
+class Rect(NamedTuple):
+    """
+    Immutable 2D axis-aligned bounding box defined by origin (x, y) and dimensions (width, height).
+    """
+    x: int
+    y: int
+    width: int
+    height: int
+
+    @property
+    def left(self) -> int:
+        """Left boundary coordinate (inclusive)."""
+        return self.x
+
+    @property
+    def top(self) -> int:
+        """Top boundary coordinate (inclusive)."""
+        return self.y
+
+    @property
+    def right(self) -> int:
+        """Right boundary coordinate (exclusive: x + width)."""
+        return self.x + self.width
+
+    @property
+    def bottom(self) -> int:
+        """Bottom boundary coordinate (exclusive: y + height)."""
+        return self.y + self.height
+
+    @property
+    def center(self) -> Point:
+        """Calculates discrete center coordinate."""
+        return Point(self.x + self.width // 2, self.y + self.height // 2)
+
+    def __contains__(self, item: Point | tuple[int, int]) -> bool:
+        """Enables pythonic `point in rect` containment checks."""
+        point_x = item.x if isinstance(item, Point) else item[0]
+        point_y = item.y if isinstance(item, Point) else item[1]
+        return self.x <= point_x < self.right and self.y <= point_y < self.bottom
+
+    def __iter__(self) -> Iterator[Point]:
+        """Allows direct iteration over all discrete cells inside the bounding box."""
+        for cell_y in range(self.y, self.bottom):
+            for cell_x in range(self.x, self.right):
+                yield Point(cell_x, cell_y)
+
+    def __str__(self) -> str:
+        return f"Rect({self.x}, {self.y}, {self.width}x{self.height})"
+
+    @classmethod
+    def from_center(cls, center_x: int, center_y: int, width: int, height: int) -> "Rect":
+        """Constructs a Rect centered around (center_x, center_y)."""
+        return cls(center_x - width // 2, center_y - height // 2, width, height)
+
+    @classmethod
+    def from_corners(cls, x1: int, y1: int, x2: int, y2: int) -> "Rect":
+        """Constructs an inclusive Rect spanning from (x1, y1) to (x2, y2)."""
+        min_x, max_x = min(x1, x2), max(x1, x2)
+        min_y, max_y = min(y1, y2), max(y1, y2)
+        return cls(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1)
 
 
 def cast_ray(

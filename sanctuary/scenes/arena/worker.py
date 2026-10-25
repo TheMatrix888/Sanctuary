@@ -10,12 +10,14 @@ from multiprocessing import Queue
 from multiprocessing.synchronize import Event as EventType
 from random import randint, sample
 
-from sanctuary.core.geometry import Point
+from sanctuary.core.geometry import Point, Rect
 
 from .config import (
     AMBIENT_HP_DRAIN,
     ARENA_HEIGHT,
     ARENA_WIDTH,
+    EXCLUSION_HEIGHT,
+    EXCLUSION_WIDTH,
     BEST_PER_GENERATION,
     BLOOD_FLOOR_HEAL_HP,
     BLOOD_FLOOR_SCORE,
@@ -35,11 +37,18 @@ from .tiles import BLOOD_FLOOR
 HALF_WIDTH = ARENA_WIDTH // 2
 HALF_HEIGHT = ARENA_HEIGHT // 2
 
-QUADRANT_BOUNDS = (
-    (1, HALF_WIDTH - 1, 1, HALF_HEIGHT - 1),  # 0: Top-Left
-    (HALF_WIDTH, ARENA_WIDTH - 2, 1, HALF_HEIGHT - 1),  # 1: Top-Right
-    (HALF_WIDTH, ARENA_WIDTH - 2, HALF_HEIGHT, ARENA_HEIGHT - 2),  # 2: Bottom-Right
-    (1, HALF_WIDTH - 1, HALF_HEIGHT, ARENA_HEIGHT - 2),  # 3: Bottom-Left
+CENTER_EXCLUSION = Rect.from_center(
+    center_x=HALF_WIDTH,
+    center_y=HALF_HEIGHT,
+    width=EXCLUSION_WIDTH,
+    height=EXCLUSION_HEIGHT,
+)
+
+QUADRANTS: tuple[Rect, ...] = (
+    Rect.from_corners(1, 1, HALF_WIDTH - 1, HALF_HEIGHT - 1),  # 0: Top-Left
+    Rect.from_corners(HALF_WIDTH, 1, ARENA_WIDTH - 2, HALF_HEIGHT - 1),  # 1: Top-Right
+    Rect.from_corners(HALF_WIDTH, HALF_HEIGHT, ARENA_WIDTH - 2, ARENA_HEIGHT - 2),  # 2: Bottom-Right
+    Rect.from_corners(1, HALF_HEIGHT, HALF_WIDTH - 1, ARENA_HEIGHT - 2),  # 3: Bottom-Left
 )
 
 MOVE_DELTAS: tuple[tuple[int, int], ...] = (
@@ -73,6 +82,12 @@ class WorldConfig:
     """Configurable execution parameters for tournament and visual pacing."""
     entities_per_team: int
     map: str
+    max_turns: int = MAX_GENERATION_TURNS
+    best_per_generation: int = BEST_PER_GENERATION
+    mutation_rate_percent: int = MUTATION_RATE_PERCENT
+    mutation_genes_count: int = MUTATION_GENES_COUNT
+    exclusion_width: int = EXCLUSION_WIDTH
+    exclusion_height: int = EXCLUSION_HEIGHT
 
 class Mode(StrEnum):
     SIMULATION = "Simulation"
@@ -94,6 +109,7 @@ class SimulationWorker:
     config: WorldConfig
     playback_settings: PlaybackSettings
     tilemap: TileMap
+    _quadrant_pools: tuple[list[Point], ...]
     red_team: list[Gladiator]
     blue_team: list[Gladiator]
     snapshot_interval: float
@@ -147,21 +163,23 @@ class SimulationWorker:
             for _ in range(self.config.entities_per_team)
         ]
 
+    def _build_tiles_pool(self, quadrant: Rect, center_exclusion: Rect) -> list[Point]:
+        """Extracts walkable floor cells in a quadrant excluding the central exclusion zone."""
+        has_exclusion = center_exclusion.width > 0 and center_exclusion.height > 0
+        return [
+            point
+            for point in quadrant
+            if (not has_exclusion or point not in center_exclusion)
+            and self.tilemap.is_walkable(point.x, point.y)
+        ]
+
     def position_teams(self) -> None:
         """Samples non-blood walkable floor cells in opposing quadrant corners and positions gladiators."""
         red_quadrant = randint(0, 3)
         blue_quadrant = (red_quadrant + 2) % 4
 
-        def tiles_pool(x_min: int, x_max: int, y_min: int, y_max: int) -> list[Point]:
-            return [
-                Point(x, y)
-                for y in range(y_min, y_max + 1)
-                for x in range(x_min, x_max + 1)
-                if self.tilemap.is_walkable(x, y) and self.tilemap.get_tile(x, y) is not BLOOD_FLOOR
-            ]
-
-        red_pool = tiles_pool(*QUADRANT_BOUNDS[red_quadrant])
-        blue_pool = tiles_pool(*QUADRANT_BOUNDS[blue_quadrant])
+        red_pool = self._quadrant_pools[red_quadrant]
+        blue_pool = self._quadrant_pools[blue_quadrant]
 
         entities_count = self.config.entities_per_team
         red_spawns = sample(red_pool, k=min(entities_count, len(red_pool)))
@@ -192,7 +210,7 @@ class SimulationWorker:
         self.red_team.sort(key=lambda g: g.score, reverse=True)
         self.blue_team.sort(key=lambda g: g.score, reverse=True)
 
-        k_champions = min(BEST_PER_GENERATION, len(self.red_team))
+        k_champions = min(self.config.best_per_generation, len(self.red_team))
         red_champion_genomes = [g.genome.copy() for g in self.red_team[:k_champions]]
         blue_champion_genomes = [g.genome.copy() for g in self.blue_team[:k_champions]]
 
@@ -210,9 +228,9 @@ class SimulationWorker:
         # 4. Point mutations: preserve top champion (index 0) intact, mutate descendants
         def mutate(team: list[Gladiator]) -> None:
             for gladiator in team[1:]:
-                if randint(1, 100) <= MUTATION_RATE_PERCENT:
-                    mutation_indices = sample(range(GENOME_SIZE), MUTATION_GENES_COUNT)
-                    mutation_values = [randint(0, GENOME_SIZE - 1) for _ in range(MUTATION_GENES_COUNT)]
+                if randint(1, 100) <= self.config.mutation_rate_percent:
+                    mutation_indices = sample(range(GENOME_SIZE), self.config.mutation_genes_count)
+                    mutation_values = [randint(0, GENOME_SIZE - 1) for _ in range(self.config.mutation_genes_count)]
                     for idx, val in zip(mutation_indices, mutation_values):
                         gladiator.genome[idx] = val
 
@@ -238,6 +256,13 @@ class SimulationWorker:
         self.playback_settings = playback_settings
         generator = ARENA_PRESETS[config.map]
         self.tilemap = generator(ARENA_WIDTH, ARENA_HEIGHT)
+        center_exclusion = Rect.from_center(
+            center_x=HALF_WIDTH,
+            center_y=HALF_HEIGHT,
+            width=config.exclusion_width,
+            height=config.exclusion_height,
+        )
+        self._quadrant_pools = tuple(self._build_tiles_pool(quadrant, center_exclusion) for quadrant in QUADRANTS)
 
         self.create_teams()
         self.position_teams()
@@ -245,7 +270,7 @@ class SimulationWorker:
         self.turn = 0
         self.record = GenerationRecord(generation=1, turns=0, survivors=0)
         self.dead_gladiators = 0
-        self.max_turns = MAX_GENERATION_TURNS
+        self.max_turns = self.config.max_turns
 
         self.snapshot_interval = 1.0 / max(1.0, playback_settings.snapshots_per_second)
         self.next_snapshot = time.perf_counter()

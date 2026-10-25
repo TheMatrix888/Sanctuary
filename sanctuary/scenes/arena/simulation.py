@@ -7,14 +7,25 @@ import time
 from multiprocessing import Event, Process, Queue
 from multiprocessing.synchronize import Event as EventType
 
-from sanctuary.core.geometry import Size
+from sanctuary.core.clock import Timer
+from sanctuary.core.geometry import Rect, Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import Command, Pop
 from sanctuary.ui.form import FormState
-from sanctuary.ui.widgets import Button, ChoiceKnob, Header, Knob, Spacer
+from sanctuary.ui.widgets import Button, ChoiceKnob, Header, Knob, Spacer, Toggle
 
-from .config import ARENA_HEIGHT, ARENA_WIDTH, GPS_METRICS_INTERVAL
+from .config import (
+    ARENA_HEIGHT,
+    ARENA_WIDTH,
+    EXCLUSION_HEIGHT,
+    EXCLUSION_WIDTH,
+    BEST_PER_GENERATION,
+    GPS_METRICS_INTERVAL,
+    MAX_GENERATION_TURNS,
+    MUTATION_GENES_COUNT,
+    MUTATION_RATE_PERCENT,
+)
 from .generators import ARENA_PRESETS
 from .tile_map import TileMap
 from .worker import (
@@ -36,6 +47,16 @@ class ArenaSimulation(FormState):
     sim_button: Button
     setup_header: Header
     live_header: Header
+    tournament_header: Header
+    max_turns_knob: Knob
+    champions_knob: Knob
+    mutation_rate_knob: Knob
+    mutation_genes_knob: Knob
+    exclusion_width_knob: Knob
+    exclusion_height_knob: Knob
+    exclusion_blink_toggle: Toggle
+    blink_timer: Timer
+    _exclusion_visible: bool
     entities_knob: Knob
     fps_knob: Knob
     mode_knob: ChoiceKnob
@@ -68,6 +89,8 @@ class ArenaSimulation(FormState):
         self.gps = 0.0
         self._last_gps_time = time.perf_counter()
         self._last_gps_generation = 1
+        self.blink_timer = Timer(0.5)
+        self._exclusion_visible = True
 
         self._build_widgets()
 
@@ -86,11 +109,56 @@ class ArenaSimulation(FormState):
         self.setup_header = Header("--- Simulation Setup ---", color=Color(245, 110, 115))
         self.live_header = Header("--- Active Simulation Controls ---", color=Color(80, 255, 120))
 
-        self.entities_knob = Knob.integer("Entities per team", value=10, min_value=1, max_value=20, suffix="entities")
-        self.fps_knob = Knob("Snapshots per second", value=2.0, min_value=1.0, max_value=60.0, precision=2,
-                             suffix="fps")
+        self.entities_knob = Knob.integer("Entities per team", value=10, min_value=1, max_value=100, suffix="entities")
+        self.fps_knob = Knob.integer("Snapshots per second", value=1, min_value=1, max_value=60, suffix="fps")
         self.mode_knob = ChoiceKnob("Mode", [mode.value for mode in Mode])
         self.map_knob = ChoiceKnob("Map", list(ARENA_PRESETS.keys()))
+        self.exclusion_width_knob = Knob.integer(
+            "Exclusion width",
+            value=EXCLUSION_WIDTH,
+            min_value=0,
+            max_value=ARENA_WIDTH - 2,
+            suffix="cells",
+        )
+        self.exclusion_height_knob = Knob.integer(
+            "Exclusion height",
+            value=EXCLUSION_HEIGHT,
+            min_value=0,
+            max_value=ARENA_HEIGHT - 2,
+            suffix="cells",
+        )
+        self.exclusion_blink_toggle = Toggle("Blink exclusion zone", is_enabled=True)
+
+        self.tournament_header = Header("--- Tournament & Evolution ---", color=Color(255, 180, 80))
+        self.max_turns_knob = Knob.integer(
+            "Max turns per epoch",
+            value=MAX_GENERATION_TURNS,
+            min_value=100,
+            max_value=2000,
+            delta=10,
+            suffix="turns",
+        )
+        self.champions_knob = Knob.integer(
+            "Champions to clone",
+            value=BEST_PER_GENERATION,
+            min_value=1,
+            max_value=int(self.entities_knob.value),
+            suffix="champions",
+        )
+        self.mutation_rate_knob = Knob.integer(
+            "Mutation rate",
+            value=MUTATION_RATE_PERCENT,
+            min_value=0,
+            max_value=100,
+            suffix="%",
+        )
+        self.mutation_genes_knob = Knob.integer(
+            "Mutated genes",
+            value=MUTATION_GENES_COUNT,
+            min_value=1,
+            max_value=16,
+            suffix="genes",
+        )
 
         self.load_button = Button("Load genome [WIP]")
         self.save_button = Button("Save genome [WIP]")
@@ -117,9 +185,18 @@ class ArenaSimulation(FormState):
                 self.sim_button,
                 Spacer(),
                 self.setup_header,
-                Spacer(),
                 self.entities_knob,
                 self.map_knob,
+                self.exclusion_width_knob,
+                self.exclusion_height_knob,
+                self.exclusion_blink_toggle,
+                Spacer(),
+                self.tournament_header,
+                self.max_turns_knob,
+                self.champions_knob,
+                self.mutation_rate_knob,
+                self.mutation_genes_knob,
+                Spacer(),
                 self.load_button,
                 self.back_button,
             ]
@@ -130,6 +207,12 @@ class ArenaSimulation(FormState):
         return WorldConfig(
             entities_per_team=int(self.entities_knob.value),
             map=self.map_knob.value,
+            max_turns=int(self.max_turns_knob.value),
+            best_per_generation=int(self.champions_knob.value),
+            mutation_rate_percent=int(self.mutation_rate_knob.value),
+            mutation_genes_count=int(self.mutation_genes_knob.value),
+            exclusion_width=int(self.exclusion_width_knob.value),
+            exclusion_height=int(self.exclusion_height_knob.value),
         )
 
     def gather_playback_settings(self) -> PlaybackSettings:
@@ -179,6 +262,11 @@ class ArenaSimulation(FormState):
 
     def update(self, dt: float, screen_size: Size) -> None:
         super().update(dt, screen_size)
+        self.champions_knob.max_value = float(self.entities_knob.value)
+        self.champions_knob.value = min(self.champions_knob.value, self.champions_knob.max_value)
+
+        if self.blink_timer.tick(dt):
+            self._exclusion_visible = not self._exclusion_visible
         if not self.snapshot_queue.empty():
             self.last_snapshot = self.snapshot_queue.get()
             now = time.perf_counter()
@@ -253,3 +341,21 @@ class ArenaSimulation(FormState):
             )
         else:
             self.map_preview.draw(screen, x_start, y_start)
+            if self.exclusion_blink_toggle.value and self._exclusion_visible:
+                exclusion_width = int(self.exclusion_width_knob.value)
+                exclusion_height = int(self.exclusion_height_knob.value)
+                if exclusion_width > 0 and exclusion_height > 0:
+                    exclusion_rect = Rect.from_center(
+                        center_x=ARENA_WIDTH // 2,
+                        center_y=ARENA_HEIGHT // 2,
+                        width=exclusion_width,
+                        height=exclusion_height,
+                    )
+                    for point in exclusion_rect:
+                        if 0 <= point.x < ARENA_WIDTH and 0 <= point.y < ARENA_HEIGHT:
+                            screen.draw_text(
+                                x=x_start + point.x,
+                                y=y_start + point.y,
+                                text="x",
+                                fg_color=Color(255, 60, 60),
+                            )

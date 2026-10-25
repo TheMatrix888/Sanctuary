@@ -137,6 +137,7 @@ class ChoiceKnob(FormItem):
             self.index = (self.index + delta) % len(self.values)
 
     def on_activate(self) -> Command | None:
+        self.on_adjust(1)
         return None
 
     def on_reset(self) -> None:
@@ -144,7 +145,44 @@ class ChoiceKnob(FormItem):
             self.index = self.default_index
 
     def get_help_hint(self) -> str:
-        return "[←/→] Cycle option  [R] Reset  [Esc] Back"
+        return "[Enter/←/→] Cycle option  [R] Reset  [Esc] Back"
+
+
+@dataclass(slots=True)
+class Toggle(FormItem):
+    """Boolean toggle switch with On/Off or custom true/false representations."""
+    label: str
+    is_enabled: bool = True
+    default_enabled: bool | None = None
+    on_label: str = "On"
+    off_label: str = "Off"
+
+    def __post_init__(self) -> None:
+        if self.default_enabled is None:
+            self.default_enabled = self.is_enabled
+
+    @property
+    def value(self) -> bool:
+        return self.is_enabled
+
+    def render_value(self) -> str:
+        text = self.on_label if self.is_enabled else self.off_label
+        return f"[{text}]"
+
+    def on_adjust(self, delta: int, multiplier: float = 1.0) -> None:
+        if delta != 0:
+            self.is_enabled = not self.is_enabled
+
+    def on_activate(self) -> Command | None:
+        self.is_enabled = not self.is_enabled
+        return None
+
+    def on_reset(self) -> None:
+        if self.default_enabled is not None:
+            self.is_enabled = self.default_enabled
+
+    def get_help_hint(self) -> str:
+        return "[Enter/←/→] Toggle  [R] Reset  [Esc] Back"
 
 
 @dataclass(slots=True)
