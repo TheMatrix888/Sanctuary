@@ -227,8 +227,10 @@ class Screen:
         if font_changed and self.terminal.is_fullscreen_or_maximized():
             self.terminal.fit_to_screen()
 
+        grid_adjusted = self.terminal.check_grid_alignment()
+
         new_size = self.terminal.get_size()
-        if new_size != self.size or font_changed or transition:
+        if new_size != self.size or font_changed or transition or grid_adjusted:
             self.resize(new_size)
             return True
         return False

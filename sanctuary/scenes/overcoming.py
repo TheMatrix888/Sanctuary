@@ -151,7 +151,7 @@ class OvercomingState(State):
 
         now = time.time()
         # Modulate width and height respecting empirical Conhost hardware threshold (ROWS >= 30)
-        target_width = int(50 + abs(math.cos(now * 0.5) * 40))
+        target_width = int(60 + abs(math.cos(now * 0.5) * 30))
         target_height = int(30 + abs(math.sin(now * 0.5) * 10))
 
         cur_size = self.terminal.get_size()

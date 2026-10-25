@@ -13,6 +13,7 @@ from typing import Protocol
 import sanctuary.core.ansi as ansi
 from sanctuary.core.geometry import Size
 from sanctuary.core.primitives import Color
+from sanctuary.core.config import MIN_COLUMNS, MIN_ROWS
 
 # --- Win32 Standard Handles ---
 STDIN_PSEUDO_HANDLE = -10
@@ -156,6 +157,9 @@ class Terminal(Protocol):
         ...
 
     def clamp_buffer_to_window(self) -> None:
+        ...
+
+    def check_grid_alignment(self) -> bool:
         ...
 
     def clear(self) -> None:
@@ -342,6 +346,10 @@ class VirtualTerminal:
         """Empties the captured stream memory."""
         self.captured_stream.clear()
 
+    def check_grid_alignment(self) -> bool:
+        """Simulated grid alignment check (no-op in headless mode)."""
+        return False
+
     def close(self) -> None:
         """Restores simulated stream and cursor."""
         self._cursor_visible = True
@@ -467,7 +475,7 @@ class WindowsTerminal:
             columns = int(buffer_info.srWindow.Right - buffer_info.srWindow.Left + 1)
             rows = int(buffer_info.srWindow.Bottom - buffer_info.srWindow.Top + 1)
             if columns > 0 and rows > 0:
-                return Size(width=columns, height=rows)
+                return Size(width=max(MIN_COLUMNS, columns), height=max(MIN_ROWS, rows))
 
         try:
             terminal_size = os.get_terminal_size()
@@ -486,8 +494,8 @@ class WindowsTerminal:
         if max_size.width > 0 and max_size.height > 0:
             columns = min(columns, max_size.width)
             rows = min(rows, max_size.height)
-        columns = max(10, columns)
-        rows = max(5, rows)
+        columns = max(MIN_COLUMNS, columns)
+        rows = max(MIN_ROWS, rows)
 
         self.columns = columns
         self.rows = rows
@@ -916,6 +924,45 @@ class WindowsTerminal:
 
         # 2. Explicitly hide Win32 scrollbars and strip scrollbar window styles
         self._strip_scrollbar_styles()
+
+    def check_grid_alignment(self) -> bool:
+        """
+        Enforces pixel-perfect alignment of the outer OS window frame to exact integer
+        character cell multiples, and clamps dimensions to the empirical Conhost
+        stability threshold (MIN_COLUMNS x MIN_ROWS).
+        Returns True if geometry was adjusted.
+        """
+        if not self.hwnd or self.is_fullscreen_or_maximized():
+            return False
+
+        try:
+            rc_win = wintypes.RECT()
+            rc_cli = wintypes.RECT()
+            if not (self.user32.GetWindowRect(self.hwnd, ctypes.byref(rc_win)) and
+                    self.user32.GetClientRect(self.hwnd, ctypes.byref(rc_cli))):
+                return False
+
+            cli_w = rc_cli.right - rc_cli.left
+            cli_h = rc_cli.bottom - rc_cli.top
+            font_sz = self.get_font_size()
+            fw = max(1, font_sz.width)
+            fh = max(1, font_sz.height)
+
+            cols = cli_w // fw
+            rows = cli_h // fh
+
+            target_cols = max(MIN_COLUMNS, cols)
+            target_rows = max(MIN_ROWS, rows)
+
+            expected_cli_w = target_cols * fw
+            expected_cli_h = target_rows * fh
+
+            if cli_w != expected_cli_w or cli_h != expected_cli_h:
+                self._set_console_geometry(target_cols, target_rows)
+                return True
+        except Exception:
+            pass
+        return False
 
     def _strip_scrollbar_styles(self) -> None:
         """Removes WS_VSCROLL and WS_HSCROLL styles and updates non-client frame."""
