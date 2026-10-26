@@ -86,6 +86,7 @@ class WorldConfig:
     mutation_rate_percent: float = MUTATION_RATE_PERCENT
     exclusion_width: int = EXCLUSION_WIDTH
     exclusion_height: int = EXCLUSION_HEIGHT
+    initial_genomes: dict[str, list[list[int]]] | None = None
 
 class Mode(StrEnum):
     SIMULATION = "Simulation"
@@ -138,6 +139,9 @@ class SimulationWorker:
 
     def create_teams(self) -> None:
         """Initializes empty gladiator pools for both factions with default metrics."""
+        red_seeds = self.config.initial_genomes.get("red") if self.config.initial_genomes else None
+        blue_seeds = self.config.initial_genomes.get("blue") if self.config.initial_genomes else None
+
         self.red_team = [
             create_gladiator(
                 x=0,
@@ -146,8 +150,9 @@ class SimulationWorker:
                 hp=100,
                 max_hp=100,
                 faction="red",
+                genome=red_seeds[i % len(red_seeds)].copy() if red_seeds else None,
             )
-            for _ in range(self.config.entities_per_team)
+            for i in range(self.config.entities_per_team)
         ]
         self.blue_team = [
             create_gladiator(
@@ -157,8 +162,9 @@ class SimulationWorker:
                 hp=100,
                 max_hp=100,
                 faction="blue",
+                genome=blue_seeds[i % len(blue_seeds)].copy() if blue_seeds else None,
             )
-            for _ in range(self.config.entities_per_team)
+            for i in range(self.config.entities_per_team)
         ]
 
     def _build_tiles_pool(self, quadrant: Rect, center_exclusion: Rect) -> list[Point]:

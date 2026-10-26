@@ -68,6 +68,14 @@ class FormState(State):
 
         self.ensure_selectable_index()
 
+        current_item = self.items[self.index]
+        if current_item.is_capturing_input:
+            if hasattr(current_item, "handle_input"):
+                command = current_item.handle_input(input_handler)
+                if command is not None:
+                    return command
+                return None
+
         # Vertical navigation
         if input_handler.is_repeated(Key.UP) or input_handler.is_repeated(Key.W):
             self._navigate(-1)
@@ -121,8 +129,8 @@ class FormState(State):
         # Items listing
         start_y = 3
         selectable_num = 1
+        y = start_y
         for i, item in enumerate(self.items):
-            y = start_y + i
             if y >= rows - 1:
                 break
 
@@ -135,6 +143,7 @@ class FormState(State):
                         text=f"    {item.label}",
                         fg_color=color,
                     )
+                y += 1
                 continue
 
             hover = (i == self.index)
@@ -156,11 +165,19 @@ class FormState(State):
                 fg_color=fg,
                 bg_color=bg,
             )
+            y += 1
+
+            # Render expanded sub-options if item is an open Dropdown
+            if getattr(item, "is_open", False) and hasattr(item, "draw_open_list"):
+                y = item.draw_open_list(screen, x=6, start_y=y, max_y=rows - 2)
 
         # Dynamic contextual bottom help bar
         if self.items and 0 <= self.index < len(self.items) and self.items[self.index].is_selectable:
             hover_item = self.items[self.index]
-            help_text = f" [W/S, ↑/↓ Navigate] {hover_item.get_help_hint()} "
+            if hover_item.is_capturing_input:
+                help_text = f" {hover_item.get_help_hint()} "
+            else:
+                help_text = f" [W/S, ↑/↓ Navigate] {hover_item.get_help_hint()} "
         else:
             help_text = " [Esc Back] "
 

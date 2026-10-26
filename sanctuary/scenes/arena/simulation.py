@@ -13,7 +13,14 @@ from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import Command, Pop
 from sanctuary.ui.form import FormState
-from sanctuary.ui.widgets import Button, ChoiceKnob, Header, Knob, Spacer, Toggle
+from sanctuary.ui.widgets import Button, ChoiceKnob, Dropdown, Header, Knob, Spacer, Toggle
+
+from .persistence import (
+    get_genomes_directory,
+    list_saved_genomes,
+    load_genome_bundle,
+    save_genome_bundle,
+)
 
 from .config import (
     ARENA_HEIGHT,
@@ -59,9 +66,12 @@ class ArenaSimulation(FormState):
     fps_knob: Knob
     mode_knob: ChoiceKnob
     map_knob: ChoiceKnob
-    load_button: Button
+    load_dropdown: Dropdown
     save_button: Button
     back_button: Button
+    loaded_genomes: dict[str, list[list[int]]] | None
+    status_message: str
+    status_message_timer: float
     process: Process | None
     snapshot_queue: Queue
     playback_queue: Queue
@@ -89,6 +99,9 @@ class ArenaSimulation(FormState):
         self._last_gps_generation = 1
         self.blink_timer = Timer(0.5)
         self._exclusion_visible = True
+        self.loaded_genomes = None
+        self.status_message = ""
+        self.status_message_timer = 0.0
 
         self._build_widgets()
 
@@ -153,9 +166,53 @@ class ArenaSimulation(FormState):
             suffix="%",
         )
 
-        self.load_button = Button("Load genome [WIP]")
-        self.save_button = Button("Save genome [WIP]")
+        self.load_dropdown = Dropdown(
+            "Load genome",
+            options=list_saved_genomes(),
+            on_select=self._on_genome_loaded,
+        )
+        self.save_button = Button("Save genome", action=self._on_save_genome)
         self.back_button = Button("Back", action=Pop())
+
+    def _on_save_genome(self) -> None:
+        """Serializes current active teams into a timestamped genome bundle."""
+        if self.last_snapshot is None or not self.last_snapshot.teams:
+            self.status_message = "Cannot save: No simulation snapshot available yet!"
+            self.status_message_timer = 3.0
+            return
+
+        try:
+            saved_path = save_genome_bundle(
+                teams=self.last_snapshot.teams,
+                generation=self.last_snapshot.generation,
+                map_name=self.current_map,
+            )
+            self.load_dropdown.options = list_saved_genomes()
+            self.status_message = f"Saved: {saved_path.name}"
+            self.status_message_timer = 4.0
+        except Exception as error:
+            self.status_message = f"Save failed: {error}"
+            self.status_message_timer = 4.0
+
+    def _on_genome_loaded(self, filename: str) -> None:
+        """Loads and activates a saved genome bundle for subsequent simulation epochs."""
+        if not filename:
+            return
+
+        try:
+            genomes_dir = get_genomes_directory()
+            bundle = load_genome_bundle(genomes_dir / filename)
+            self.loaded_genomes = {
+                "red": bundle["red_genomes"],
+                "blue": bundle["blue_genomes"],
+            }
+            count = len(bundle["red_genomes"])
+            self.status_message = f"Loaded {filename} [{count} champions, Gen {bundle['generation']}]"
+            self.status_message_timer = 4.0
+        except Exception as error:
+            self.status_message = f"Load failed: {error}"
+            self.status_message_timer = 4.0
+
 
     def update_map_preview(self) -> None:
         self.current_map = self.map_knob.value
@@ -163,6 +220,7 @@ class ArenaSimulation(FormState):
 
     def _update_active_items(self) -> None:
         if self.is_running:
+            self.save_button.label = "Save current genome"
             self.items = [
                 self.sim_button,
                 Spacer(),
@@ -174,6 +232,11 @@ class ArenaSimulation(FormState):
                 self.back_button,
             ]
         else:
+            if self.last_snapshot is not None:
+                self.save_button.label = f"Save latest snapshot genome (Gen {self.last_snapshot.generation})"
+            else:
+                self.save_button.label = "Save latest snapshot genome [None]"
+
             self.items = [
                 self.sim_button,
                 Spacer(),
@@ -189,7 +252,8 @@ class ArenaSimulation(FormState):
                 self.champions_knob,
                 self.mutation_rate_knob,
                 Spacer(),
-                self.load_button,
+                self.load_dropdown,
+                self.save_button,
                 self.back_button,
             ]
         self.ensure_selectable_index()
@@ -204,6 +268,7 @@ class ArenaSimulation(FormState):
             mutation_rate_percent=float(self.mutation_rate_knob.value),
             exclusion_width=int(self.exclusion_width_knob.value),
             exclusion_height=int(self.exclusion_height_knob.value),
+            initial_genomes=self.loaded_genomes,
         )
 
     def gather_playback_settings(self) -> PlaybackSettings:
@@ -243,7 +308,12 @@ class ArenaSimulation(FormState):
                 if self.process.is_alive():
                     self.process.terminate()
             self.process = None
-            self.last_snapshot = None
+            # Drain remaining snapshots from queue to capture final match state
+            while not self.snapshot_queue.empty():
+                try:
+                    self.last_snapshot = self.snapshot_queue.get_nowait()
+                except Exception:
+                    break
             self.gps = 0.0
 
         self.is_running = not self.is_running
@@ -253,6 +323,10 @@ class ArenaSimulation(FormState):
 
     def update(self, dt: float, screen_size: Size) -> None:
         super().update(dt, screen_size)
+        if self.status_message_timer > 0.0:
+            self.status_message_timer -= dt
+            if self.status_message_timer <= 0.0:
+                self.status_message = ""
         self.champions_knob.max_value = float(self.entities_knob.value)
         self.champions_knob.value = min(self.champions_knob.value, self.champions_knob.max_value)
 
@@ -303,6 +377,13 @@ class ArenaSimulation(FormState):
             text=status_text,
             fg_color=status_fg,
         )
+        if self.status_message:
+            screen.draw_text(
+                x=35,
+                y=status_y,
+                text=f"[!] {self.status_message}",
+                fg_color=Color(255, 230, 100),
+            )
 
         x_start, y_start = 55, 3
         if self.last_snapshot and self.is_running:
