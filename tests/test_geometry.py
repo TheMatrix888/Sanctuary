@@ -17,6 +17,7 @@ class TestRect:
         assert rect.right == 40
         assert rect.bottom == 60
         assert rect.center == Point(25, 40)
+        assert not isinstance(rect, tuple)
 
     def test_rect_contains_point(self) -> None:
         rect = Rect(10, 10, 20, 20)

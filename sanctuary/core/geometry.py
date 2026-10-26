@@ -3,6 +3,7 @@ Spatial and geometric primitives for the Sanctuary engine.
 Provides fundamental immutable types for 2D terminal coordinates, dimensions, and bounding boxes.
 """
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 from typing import NamedTuple
 
 
@@ -46,7 +47,8 @@ class Size(NamedTuple):
         return f"{self.width}x{self.height} ({self.total_cells:,} cells)"
 
 
-class Rect(NamedTuple):
+@dataclass(slots=True, frozen=True)
+class Rect:
     """
     Immutable 2D axis-aligned bounding box defined by origin (x, y) and dimensions (width, height).
     """
