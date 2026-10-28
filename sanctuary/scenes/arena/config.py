@@ -31,7 +31,7 @@ DEFAULT_MAP: str = next(iter(ARENA_PRESETS.keys()))
 # Evolution & Tournament Hyperparameters
 BEST_PER_GENERATION: int = 4
 MUTATION_RATE_PERCENT: float = 2.0
-MAX_GENERATION_TURNS: int = 500
+MAX_GENERATION_TURNS: int = 200
 
 # Scoring & Environmental Multipliers
 BLOOD_FLOOR_HEAL_HP: int = 2

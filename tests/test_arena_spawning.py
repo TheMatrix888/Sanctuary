@@ -4,14 +4,14 @@ Unit test for gladiator spawning in arena worker with the center exclusion zone.
 from multiprocessing import Queue
 import multiprocessing
 
-from sanctuary.core.geometry import Point, Rect
+from sanctuary.core.geometry import Point, Rect, Size
 from sanctuary.scenes.arena.config import ARENA_WIDTH, ARENA_HEIGHT, GENOME_SIZE
-from sanctuary.scenes.arena.worker import (
-    SimulationWorker,
-    WorldConfig,
-    PlaybackSettings,
+from sanctuary.scenes.arena.models import (
     Mode,
+    PlaybackSettings,
+    WorldConfig,
 )
+from sanctuary.scenes.arena.worker import SimulationWorker
 
 
 def test_gladiator_spawning_avoids_center_exclusion() -> None:
@@ -22,8 +22,7 @@ def test_gladiator_spawning_avoids_center_exclusion() -> None:
     config = WorldConfig(
         entities_per_team=10,
         map="Colosseum Arena",
-        exclusion_width=ARENA_WIDTH // 3,
-        exclusion_height=ARENA_HEIGHT // 3,
+        exclusion_size=Size(ARENA_WIDTH // 3, ARENA_HEIGHT // 3),
     )
     settings = PlaybackSettings(snapshots_per_second=10.0, mode=Mode.SIMULATION)
 
@@ -38,8 +37,8 @@ def test_gladiator_spawning_avoids_center_exclusion() -> None:
     exclusion_rect = Rect.from_center(
         center_x=ARENA_WIDTH // 2,
         center_y=ARENA_HEIGHT // 2,
-        width=config.exclusion_width,
-        height=config.exclusion_height,
+        width=config.exclusion_size.width,
+        height=config.exclusion_size.height,
     )
 
     # Check 50 consecutive team positionings across generations

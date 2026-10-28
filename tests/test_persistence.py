@@ -4,7 +4,7 @@ Unit tests for genome persistence, serialization, and version validation.
 import pytest
 from sanctuary.scenes.arena.config import GENOME_SIZE
 from sanctuary.scenes.arena.gladiator import create_gladiator
-from sanctuary.scenes.arena.worker import WorldConfig
+from sanctuary.scenes.arena.models import WorldConfig
 from sanctuary.scenes.arena.persistence import (
     SCHEMA_VERSION,
     list_simulation_saves,

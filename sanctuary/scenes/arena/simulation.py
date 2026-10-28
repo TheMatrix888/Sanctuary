@@ -3,11 +3,9 @@ Arena Simulation Form State — Parameter inspector and genetic tournament confi
 Coordinates evolutionary bytecode gladiators in an isolated multiprocessing worker.
 """
 import queue
-import time
 from multiprocessing import Event, Process, Queue
 from multiprocessing.synchronize import Event as EventType
 
-from sanctuary.core.clock import Timer
 from sanctuary.core.geometry import Rect, Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
@@ -26,24 +24,23 @@ from .config import (
     ARENA_HEIGHT,
     ARENA_WIDTH,
     DEFAULT_ENTITIES_PER_TEAM,
-    DEFAULT_MAP,
     EXCLUSION_HEIGHT,
     EXCLUSION_WIDTH,
     BEST_PER_GENERATION,
-    GPS_METRICS_INTERVAL,
     MAX_GENERATION_TURNS,
     MUTATION_RATE_PERCENT,
 )
 from .generators import ARENA_PRESETS
-from .tile_map import TileMap
-from .worker import (
-    GenerationRecord,
+from .models import (
+    BlinkIndicator,
+    GpsTracker,
     Mode,
     PlaybackSettings,
     Snapshot,
     WorldConfig,
-    run_simulation_worker,
 )
+from .tile_map import TileMap
+from .worker import run_simulation_worker
 
 
 class ArenaSimulation(FormState):
@@ -62,8 +59,7 @@ class ArenaSimulation(FormState):
     exclusion_width_knob: Knob
     exclusion_height_knob: Knob
     exclusion_blink_toggle: Toggle
-    blink_timer: Timer
-    _exclusion_visible: bool
+    exclusion_blinker: BlinkIndicator
     entities_knob: Knob
     fps_knob: Knob
     mode_knob: ChoiceKnob
@@ -72,6 +68,7 @@ class ArenaSimulation(FormState):
     save_button: Button
     back_button: Button
     loaded_genomes: dict[str, list[list[int]]] | None
+    loaded_generation: int
     status_message: str
     status_message_timer: float
     process: Process | None
@@ -83,9 +80,7 @@ class ArenaSimulation(FormState):
     map_preview: TileMap
     _last_fps: float
     _last_mode: str
-    gps: float
-    _last_gps_time: float
-    _last_gps_generation: int
+    gps_tracker: GpsTracker
 
     def __init__(self) -> None:
         self.is_running = False
@@ -96,12 +91,10 @@ class ArenaSimulation(FormState):
         self.last_snapshot = None
         self._last_fps = 0.0
         self._last_mode = ""
-        self.gps = 0.0
-        self._last_gps_time = time.perf_counter()
-        self._last_gps_generation = 1
-        self.blink_timer = Timer(0.5)
-        self._exclusion_visible = True
+        self.gps_tracker = GpsTracker()
+        self.exclusion_blinker = BlinkIndicator(0.5)
         self.loaded_genomes = None
+        self.loaded_generation = 1
         self.status_message = ""
         self.status_message_timer = 0.0
 
@@ -115,6 +108,14 @@ class ArenaSimulation(FormState):
 
         self._update_active_items()
         self.update_map_preview()
+
+    @property
+    def gps(self) -> float:
+        return self.gps_tracker.rate
+
+    @property
+    def _exclusion_visible(self) -> bool:
+        return self.exclusion_blinker.is_visible
 
     def _build_widgets(self) -> None:
         """Instantiates compact form widgets, knobs, and decorative section headers."""
@@ -208,11 +209,10 @@ class ArenaSimulation(FormState):
                 "red": save.red_genomes,
                 "blue": save.blue_genomes,
             }
+            self.loaded_generation = save.generation
             self.set_world_config(save.world_config)
 
-
             count = len(save.red_genomes)
-
             self.status_message = f"Loaded {filename} [{count} champions, Gen {save.generation}]"
             self.status_message_timer = 4.0
         except Exception as error:
@@ -272,8 +272,8 @@ class ArenaSimulation(FormState):
             max_turns=int(self.max_turns_knob.value),
             best_per_generation=int(self.champions_knob.value),
             mutation_rate_percent=float(self.mutation_rate_knob.value),
-            exclusion_width=int(self.exclusion_width_knob.value),
-            exclusion_height=int(self.exclusion_height_knob.value),
+            exclusion_size=Size(int(self.exclusion_width_knob.value), int(self.exclusion_height_knob.value)),
+            initial_generation=self.loaded_generation,
             initial_genomes=self.loaded_genomes,
         )
 
@@ -284,8 +284,9 @@ class ArenaSimulation(FormState):
         self.max_turns_knob.value = config.max_turns
         self.champions_knob.value = config.best_per_generation
         self.mutation_rate_knob.value = config.mutation_rate_percent
-        self.exclusion_width_knob.value = config.exclusion_width
-        self.exclusion_height_knob.value = config.exclusion_height
+        self.exclusion_width_knob.value = config.exclusion_size.width
+        self.exclusion_height_knob.value = config.exclusion_size.height
+        self.loaded_generation = config.initial_generation
         self.update_map_preview()
 
     def gather_playback_settings(self) -> PlaybackSettings:
@@ -299,9 +300,7 @@ class ArenaSimulation(FormState):
         """Toggles simulation execution state and synchronizes button label."""
         if not self.is_running:
             self.stop_event.clear()
-            self.gps = 0.0
-            self._last_gps_time = time.perf_counter()
-            self._last_gps_generation = 1
+            self.gps_tracker.reset(self.loaded_generation)
             playback_settings = self.gather_playback_settings()
             self._last_fps = playback_settings.snapshots_per_second
             self._last_mode = playback_settings.mode.value
@@ -332,7 +331,7 @@ class ArenaSimulation(FormState):
                     self.last_snapshot = self.snapshot_queue.get_nowait()
                 except Exception:
                     break
-            self.gps = 0.0
+            self.gps_tracker.reset()
 
         self.is_running = not self.is_running
         self.sim_button.label = "Stop simulation" if self.is_running else "Start simulation"
@@ -348,17 +347,10 @@ class ArenaSimulation(FormState):
         self.champions_knob.max_value = float(self.entities_knob.value)
         self.champions_knob.value = min(self.champions_knob.value, self.champions_knob.max_value)
 
-        if self.blink_timer.tick(dt):
-            self._exclusion_visible = not self._exclusion_visible
+        self.exclusion_blinker.tick(dt)
         if not self.snapshot_queue.empty():
             self.last_snapshot = self.snapshot_queue.get()
-            now = time.perf_counter()
-            elapsed = now - self._last_gps_time
-            if elapsed >= GPS_METRICS_INTERVAL:
-                delta_gen = self.last_snapshot.generation - self._last_gps_generation
-                self.gps = max(0.0, delta_gen / elapsed)
-                self._last_gps_time = now
-                self._last_gps_generation = self.last_snapshot.generation
+            self.gps_tracker.update(self.last_snapshot.generation)
 
         if self.is_running:
             current_fps = self.fps_knob.value
@@ -411,8 +403,8 @@ class ArenaSimulation(FormState):
                 for gladiator in team:
                     gladiator.draw(screen, x_start, y_start)
 
-            if self.gps > 0 and mode == Mode.SIMULATION:
-                gps_suffix = f" ({self.gps:.0f} gen/s)"
+            if self.gps_tracker.rate > 0 and mode == Mode.SIMULATION:
+                gps_suffix = f" ({self.gps_tracker.rate:.0f} gen/s)"
             else:
                 gps_suffix = ""
 
@@ -431,21 +423,14 @@ class ArenaSimulation(FormState):
             )
         else:
             self.map_preview.draw(screen, x_start, y_start)
-            if self.exclusion_blink_toggle.value and self._exclusion_visible:
+            if self.exclusion_blink_toggle.value and self.exclusion_blinker.is_visible:
                 exclusion_width = int(self.exclusion_width_knob.value)
                 exclusion_height = int(self.exclusion_height_knob.value)
                 if exclusion_width > 0 and exclusion_height > 0:
                     exclusion_rect = Rect.from_center(
-                        center_x=ARENA_WIDTH // 2,
-                        center_y=ARENA_HEIGHT // 2,
+                        center_x=x_start + ARENA_WIDTH // 2,
+                        center_y=y_start + ARENA_HEIGHT // 2,
                         width=exclusion_width,
                         height=exclusion_height,
                     )
-                    for point in exclusion_rect:
-                        if 0 <= point.x < ARENA_WIDTH and 0 <= point.y < ARENA_HEIGHT:
-                            screen.draw_text(
-                                x=x_start + point.x,
-                                y=y_start + point.y,
-                                text="x",
-                                fg_color=Color(255, 60, 60),
-                            )
+                    screen.fill_rect(exclusion_rect, char="x", fg_color=Color(255, 60, 60))

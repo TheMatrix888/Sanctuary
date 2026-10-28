@@ -2,27 +2,39 @@
 Persistence and serialization layer for arena gladiator genomes and match benchmarks.
 Saves and loads evolutionary dynasties to structured JSON bundles with versioning and metadata.
 """
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from datetime import datetime
 import json
 from pathlib import Path
 from typing import Any
 
-from .worker import WorldConfig
-from .config import GENOME_SIZE
+from sanctuary.core.geometry import Size
+
+from .config import (
+    BEST_PER_GENERATION,
+    DEFAULT_ENTITIES_PER_TEAM,
+    DEFAULT_MAP,
+    EXCLUSION_HEIGHT,
+    EXCLUSION_WIDTH,
+    GENOME_SIZE,
+    MAX_GENERATION_TURNS,
+    MUTATION_RATE_PERCENT,
+)
+from .models import SimulationSave, WorldConfig
+
 from .gladiator import Gladiator
 
 SAVES_DIR: Path = Path("resources/simulation_saves")
 SCHEMA_VERSION: int = 2
 
-@dataclass(slots=True, frozen=True)
-class SimulationSave:
-    version: int
-    world_config: WorldConfig
-    generation: int
-    created_at: str
-    red_genomes: list[list[int]]
-    blue_genomes: list[list[int]]
+
+
+
+
+
+
+
+
 
 def get_saves_directory(directory: Path = SAVES_DIR) -> Path:
     """Ensures the target genome persistence directory exists and returns its resolved Path."""
@@ -49,9 +61,12 @@ def save_simulation(
     filename = f"{map_slug}_gen{generation}_{timestamp_str}.json"
     file_path = target_dir / filename
 
+    config_dict = asdict(world_config)
+    config_dict["initial_generation"] = generation
+
     payload: dict[str, Any] = {
         "version": SCHEMA_VERSION,
-        "world_config": asdict(world_config),
+        "world_config": config_dict,
         "generation": generation,
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "teams": {
@@ -93,14 +108,36 @@ def load_simulation(file_path: Path) -> SimulationSave:
             f"Unsupported genome save version: {version} (expected {SCHEMA_VERSION})"
         )
 
+    generation = int(data.get("generation", 1))
+    created_at = str(data.get("created_at", ""))
+
     config_data = data.get("world_config")
     if isinstance(config_data, dict):
-        world_config = WorldConfig(**config_data)
-    else:
-        world_config = WorldConfig()
+        raw_exclusion = config_data.get("exclusion_size")
+        if isinstance(raw_exclusion, dict):
+            exclusion_size = Size(
+                int(raw_exclusion.get("width", EXCLUSION_WIDTH)),
+                int(raw_exclusion.get("height", EXCLUSION_HEIGHT)),
+            )
+        elif "exclusion_width" in config_data and "exclusion_height" in config_data:
+            exclusion_size = Size(
+                int(config_data["exclusion_width"]),
+                int(config_data["exclusion_height"]),
+            )
+        else:
+            exclusion_size = Size(EXCLUSION_WIDTH, EXCLUSION_HEIGHT)
 
-    generation = data.get("generation", 1)
-    created_at = data.get("created_at", "")
+        world_config = WorldConfig(
+            entities_per_team=int(config_data.get("entities_per_team", DEFAULT_ENTITIES_PER_TEAM)),
+            map=str(config_data.get("map", DEFAULT_MAP)),
+            max_turns=int(config_data.get("max_turns", MAX_GENERATION_TURNS)),
+            best_per_generation=int(config_data.get("best_per_generation", BEST_PER_GENERATION)),
+            mutation_rate_percent=float(config_data.get("mutation_rate_percent", MUTATION_RATE_PERCENT)),
+            exclusion_size=exclusion_size,
+            initial_generation=int(config_data.get("initial_generation", generation)),
+        )
+    else:
+        world_config = WorldConfig(initial_generation=generation)
 
     teams_data = data.get("teams", {})
     red_raw = teams_data.get("red", [])

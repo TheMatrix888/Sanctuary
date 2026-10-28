@@ -4,8 +4,6 @@ Manages isolated tournament execution, genetic lifecycle, and state snapshot IPC
 """
 import queue
 import time
-from dataclasses import dataclass
-from enum import StrEnum
 from multiprocessing import Queue
 from multiprocessing.synchronize import Event as EventType
 from random import randint, random, sample
@@ -16,34 +14,27 @@ from .config import (
     AMBIENT_HP_DRAIN,
     ARENA_HEIGHT,
     ARENA_WIDTH,
-    EXCLUSION_HEIGHT,
-    EXCLUSION_WIDTH,
-    BEST_PER_GENERATION,
     BLOOD_FLOOR_HEAL_HP,
     BLOOD_FLOOR_SCORE,
     CENTER_APPROACH_MULTIPLIER,
-    DEFAULT_ENTITIES_PER_TEAM,
-    DEFAULT_MAP,
     GENOME_SIZE,
-    MAX_GENERATION_TURNS,
     MAX_VM_ACTIONS_PER_TICK,
-    MUTATION_RATE_PERCENT,
     SURVIVAL_BONUS,
 )
 from .generators import ARENA_PRESETS
 from .gladiator import Gladiator, create_gladiator
 from .tile_map import TileMap
 from .tiles import BLOOD_FLOOR
+from .models import (
+    GenerationRecord,
+    Mode,
+    PlaybackSettings,
+    Snapshot,
+    WorldConfig,
+)
 
 HALF_WIDTH = ARENA_WIDTH // 2
 HALF_HEIGHT = ARENA_HEIGHT // 2
-
-CENTER_EXCLUSION = Rect.from_center(
-    center_x=HALF_WIDTH,
-    center_y=HALF_HEIGHT,
-    width=EXCLUSION_WIDTH,
-    height=EXCLUSION_HEIGHT,
-)
 
 QUADRANTS: tuple[Rect, ...] = (
     Rect.from_corners(1, 1, HALF_WIDTH - 1, HALF_HEIGHT - 1),  # 0: Top-Left
@@ -58,48 +49,6 @@ MOVE_DELTAS: tuple[tuple[int, int], ...] = (
     (0, -1),  # 2: Up    (y - 1)
     (1, 0),  # 3: Right (x + 1)
 )
-
-
-@dataclass(slots=True, frozen=True)
-class GenerationRecord:
-    """Historical benchmark record tracking generation longevity and survivability."""
-    generation: int
-    turns: int
-    survivors: int
-
-
-@dataclass(slots=True, frozen=True)
-class Snapshot:
-    """Inter-process state telemetry sent from simulation worker to UI screen."""
-    teams: list[list[Gladiator]]
-    tilemap: TileMap
-    turn: int
-    generation: int
-    record: GenerationRecord
-
-
-@dataclass(slots=True, frozen=True)
-class WorldConfig:
-    """Configurable execution parameters for tournament and visual pacing."""
-    entities_per_team: int = DEFAULT_ENTITIES_PER_TEAM
-    map: str = DEFAULT_MAP
-    max_turns: int = MAX_GENERATION_TURNS
-    best_per_generation: int = BEST_PER_GENERATION
-    mutation_rate_percent: float = MUTATION_RATE_PERCENT
-    exclusion_width: int = EXCLUSION_WIDTH
-    exclusion_height: int = EXCLUSION_HEIGHT
-    initial_genomes: dict[str, list[list[int]]] | None = None
-
-class Mode(StrEnum):
-    SIMULATION = "Simulation"
-    THEATRE = "Theatre"
-    PAUSE = "Pause"
-
-
-@dataclass(slots=True, frozen=True)
-class PlaybackSettings:
-    snapshots_per_second: float
-    mode: Mode
 
 
 class SimulationWorker:
@@ -126,12 +75,12 @@ class SimulationWorker:
     record: GenerationRecord
 
     def __init__(
-            self,
-            world_config: WorldConfig,
-            playback_settings: PlaybackSettings,
-            playback_settings_queue: Queue,
-            snapshot_queue: Queue,
-            stop_event: EventType,
+        self,
+        world_config: WorldConfig,
+        playback_settings: PlaybackSettings,
+        playback_settings_queue: Queue,
+        snapshot_queue: Queue,
+        stop_event: EventType,
     ) -> None:
         self.playback_settings_queue = playback_settings_queue
         self.snapshot_queue = snapshot_queue
@@ -266,16 +215,16 @@ class SimulationWorker:
         center_exclusion = Rect.from_center(
             center_x=HALF_WIDTH,
             center_y=HALF_HEIGHT,
-            width=config.exclusion_width,
-            height=config.exclusion_height,
+            width=config.exclusion_size.width,
+            height=config.exclusion_size.height,
         )
         self._quadrant_pools = tuple(self._build_tiles_pool(quadrant, center_exclusion) for quadrant in QUADRANTS)
 
         self.create_teams()
         self.position_teams()
-        self.generation = 1
+        self.generation = self.config.initial_generation
         self.turn = 0
-        self.record = GenerationRecord(generation=1, turns=0, survivors=0)
+        self.record = GenerationRecord(generation=self.config.initial_generation, turns=0, survivors=0)
         self.dead_gladiators = 0
         self.max_turns = self.config.max_turns
 

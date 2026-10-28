@@ -5,7 +5,7 @@ Manages double-buffering, differential delta rendering, and hardware flush.
 from __future__ import annotations
 
 import sanctuary.core.ansi as ansi
-from sanctuary.core.geometry import Size
+from sanctuary.core.geometry import Rect, Size
 from sanctuary.core.primitives import Surface, Color, Cell, DEFAULT_FG, DEFAULT_BG
 from sanctuary.core.config import DEFAULT_DISPLAY_CONFIG, DisplayConfig
 from sanctuary.core.terminal import Terminal
@@ -98,6 +98,21 @@ class Screen:
                 y,
                 Cell(char, fg_color, bg_color),
             )
+
+    def fill_rect(
+        self,
+        rect: Rect,
+        char: str = " ",
+        fg_color: Color | None = None,
+        bg_color: Color | None = None,
+    ) -> None:
+        """Fills a rectangular region on the back buffer canvas with safe boundary clipping."""
+        fg_color = fg_color or DEFAULT_FG
+        bg_color = bg_color or DEFAULT_BG
+        cell = Cell(char, fg_color, bg_color)
+        for point in rect:
+            if 0 <= point.x < self.size.columns and 0 <= point.y < self.size.rows:
+                self.back_buffer.set_cell(point.x, point.y, cell)
 
     def draw_surface(
         self,

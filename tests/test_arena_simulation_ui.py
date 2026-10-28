@@ -1,19 +1,23 @@
 """
 Unit test for ArenaSimulation form state, exclusion zone knobs, blinking timer, and Toggle widget.
 """
-from sanctuary.core.geometry import Size
+from sanctuary.core.config import DisplayConfig
+from sanctuary.core.geometry import Rect, Size
+from sanctuary.core.primitives import Color
+from sanctuary.core.screen import Screen
+from sanctuary.core.terminal import VirtualTerminal
 from sanctuary.scenes.arena.config import ARENA_HEIGHT, ARENA_WIDTH
 from sanctuary.scenes.arena.generators import generate_tectonic_chasm
+from sanctuary.scenes.arena.models import BlinkIndicator, GpsTracker, WorldConfig
 from sanctuary.scenes.arena.simulation import ArenaSimulation
 from sanctuary.scenes.arena.tiles import BLOOD_FLOOR
-from sanctuary.scenes.arena.worker import WorldConfig
 from sanctuary.ui.widgets import Toggle
 
 
 def test_arena_simulation_widgets_and_config() -> None:
     sim = ArenaSimulation()
     assert sim.entities_knob.value == 10
-    assert sim.max_turns_knob.value == 500
+    assert sim.max_turns_knob.value == 200
     assert sim.champions_knob.value == 4
     assert sim.mutation_rate_knob.value == 2.0
     assert sim.exclusion_width_knob.value == 20
@@ -32,11 +36,11 @@ def test_arena_simulation_widgets_and_config() -> None:
     config = sim.gather_world_config()
     assert isinstance(config, WorldConfig)
     assert config.entities_per_team == 11
-    assert config.max_turns == 510
+    assert config.max_turns == 210
     assert config.best_per_generation == 5
     assert config.mutation_rate_percent == 2.5
-    assert config.exclusion_width == 22
-    assert config.exclusion_height == 9
+    assert config.exclusion_size.width == 22
+    assert config.exclusion_size.height == 9
     assert sim.exclusion_blink_toggle.value is False
 
 
@@ -105,3 +109,62 @@ def test_tectonic_chasm_3x3_center() -> None:
                 blood_cells_count += 1
 
     assert blood_cells_count == 9, f"Expected 9 blood floor cells in 3x3 center, found {blood_cells_count}"
+
+
+def test_gps_tracker() -> None:
+    tracker = GpsTracker(interval=0.5)
+    assert tracker.rate == 0.0
+
+    # Reset with custom initial generation
+    tracker.reset(initial_generation=50)
+    assert tracker.rate == 0.0
+    assert tracker._last_generation == 50
+
+    # Advance time artificially
+    tracker._last_time -= 0.6
+    tracker.update(current_generation=60)
+    assert tracker.rate > 0.0
+    assert tracker._last_generation == 60
+
+
+def test_blink_indicator() -> None:
+    blinker = BlinkIndicator(interval=0.5)
+    assert blinker.is_visible is True
+
+    # Advance 0.3s -> no change
+    toggled = blinker.tick(0.3)
+    assert toggled is False
+    assert blinker.is_visible is True
+
+    # Advance 0.2s -> expired, toggled to False
+    toggled = blinker.tick(0.2)
+    assert toggled is True
+    assert blinker.is_visible is False
+
+    # Reset -> restores visibility
+    blinker.reset()
+    assert blinker.is_visible is True
+
+
+def test_screen_fill_rect() -> None:
+    terminal = VirtualTerminal()
+    display = DisplayConfig(columns=80, rows=25)
+    screen = Screen(terminal, display)
+
+    rect = Rect(10, 5, 4, 3)
+    fill_color = Color(255, 100, 50)
+    screen.fill_rect(rect, char="#", fg_color=fill_color)
+
+    for point in rect:
+        cell = screen.back_buffer.cells[point.y][point.x]
+        assert cell.char == "#"
+        assert cell.fg_color == fill_color
+
+    # Cell outside rect is untouched
+    outside = screen.back_buffer.cells[5][9]
+    assert outside.char == " "
+
+    # Fill rect clipping against screen boundary without exception
+    boundary_rect = Rect(75, 20, 10, 10)
+    screen.fill_rect(boundary_rect, char="@")
+    assert screen.back_buffer.cells[24][79].char == "@"

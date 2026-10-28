@@ -4,7 +4,7 @@ Decouples visual Surface representations entirely from physical tile material pr
 """
 from dataclasses import dataclass
 
-from sanctuary.core.primitives import Cell, Color, Surface
+from sanctuary.core.primitives import Color, Surface
 
 
 @dataclass(slots=True, frozen=True)
