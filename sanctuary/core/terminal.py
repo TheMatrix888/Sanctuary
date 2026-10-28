@@ -150,6 +150,9 @@ class Terminal(Protocol):
     def check_fullscreen_transition(self) -> bool:
         ...
 
+    def check_restore_transition(self) -> bool:
+        ...
+
     def fit_to_screen(self) -> Size:
         ...
 
@@ -190,6 +193,8 @@ class VirtualTerminal:
     _saved_windowed_cols: int
     _saved_windowed_rows: int
     _saved_windowed_font_height: int
+    _is_iconic: bool
+    _was_iconic: bool
 
     def __init__(
             self,
@@ -211,6 +216,8 @@ class VirtualTerminal:
         self._saved_windowed_cols = columns
         self._saved_windowed_rows = rows
         self._saved_windowed_font_height = font_height
+        self._is_iconic = False
+        self._was_iconic = False
 
     def write(self, text: str) -> None:
         """Appends output text to internal memory stream."""
@@ -350,6 +357,23 @@ class VirtualTerminal:
         """Simulated grid alignment check (no-op in headless mode)."""
         return False
 
+    def simulate_minimize(self) -> None:
+        """Simulates window minimization (iconic state)."""
+        self._is_iconic = True
+
+    def simulate_restore(self) -> None:
+        """Simulates restoring window from taskbar minimization."""
+        self._is_iconic = False
+
+    def check_restore_transition(self) -> bool:
+        """Simulates restore transition detection and cursor suppression."""
+        if not self._is_iconic and self._was_iconic:
+            self._was_iconic = False
+            self.hide_cursor()
+            return True
+        self._was_iconic = self._is_iconic
+        return False
+
     def close(self) -> None:
         """Restores simulated stream and cursor."""
         self._cursor_visible = True
@@ -370,6 +394,7 @@ class WindowsTerminal:
     hwnd: wintypes.HWND
     _cursor_visible: bool
     _was_fullscreen: bool
+    _was_iconic: bool
     _saved_windowed_cols: int
     _saved_windowed_rows: int
     _saved_windowed_font_height: int
@@ -400,6 +425,7 @@ class WindowsTerminal:
         # State tracking fields
         self._cursor_visible = False
         self._was_fullscreen = False
+        self._was_iconic = False
         self._saved_windowed_cols = columns
         self._saved_windowed_rows = rows
         self._saved_windowed_font_height = font_size_height
@@ -815,6 +841,28 @@ class WindowsTerminal:
             self._saved_windowed_rows = cur_size.rows
             self._saved_windowed_font_height = self.font_size_height
 
+        return False
+
+    def check_restore_transition(self) -> bool:
+        """
+        Detects transitions from minimized (iconic) to restored window state.
+        When a minimized console window is restored from the taskbar, Windows Conhost
+        automatically resets and reveals the hardware text caret.
+        This detects the restoration edge and re-suppresses the cursor immediately.
+        Returns True if a restoration transition occurred on this frame.
+        """
+        if not self.hwnd:
+            return False
+
+        try:
+            is_iconic = bool(self.user32.IsIconic(self.hwnd))
+            if not is_iconic and self._was_iconic:
+                self._was_iconic = False
+                self.hide_cursor()
+                return True
+            self._was_iconic = is_iconic
+        except Exception:
+            pass
         return False
 
     def get_max_size(self) -> Size:

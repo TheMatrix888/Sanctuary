@@ -229,12 +229,14 @@ class Screen:
     def check_resize(self) -> bool:
         """
         Detects whether terminal grid dimensions or character font size changed,
-        or if a transition between windowed and fullscreen/maximized occurred.
+        or if a transition between windowed and fullscreen/maximized occurred,
+        or if the window was restored from taskbar minimization.
         Triggers immediate buffer reallocation and terminal state synchronization.
         In fullscreen or maximized mode, font changes dynamically fit the grid to screen,
         enabling true optical semantic zoom.
         """
         transition = self.terminal.check_fullscreen_transition()
+        restored = self.terminal.check_restore_transition()
 
         new_font_size = self.terminal.get_font_size()
         font_changed = (new_font_size != self.font_size)
@@ -247,6 +249,9 @@ class Screen:
         new_size = self.terminal.get_size()
         if new_size != self.size or font_changed or transition or grid_adjusted:
             self.resize(new_size)
+            return True
+        elif restored:
+            self._force_full_redraw = True
             return True
         return False
 
