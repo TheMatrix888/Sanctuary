@@ -16,15 +16,17 @@ from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button, ChoiceKnob, Dropdown, Header, Knob, Spacer, Toggle
 
 from .persistence import (
-    get_genomes_directory,
-    list_saved_genomes,
-    load_genome_bundle,
-    save_genome_bundle,
+    get_saves_directory,
+    list_simulation_saves,
+    load_simulation,
+    save_simulation,
 )
 
 from .config import (
     ARENA_HEIGHT,
     ARENA_WIDTH,
+    DEFAULT_ENTITIES_PER_TEAM,
+    DEFAULT_MAP,
     EXCLUSION_HEIGHT,
     EXCLUSION_WIDTH,
     BEST_PER_GENERATION,
@@ -120,7 +122,7 @@ class ArenaSimulation(FormState):
         self.setup_header = Header("--- Simulation Setup ---", color=Color(245, 110, 115))
         self.live_header = Header("--- Active Simulation Controls ---", color=Color(80, 255, 120))
 
-        self.entities_knob = Knob.integer("Entities per team", value=10, min_value=1, max_value=100, suffix="entities")
+        self.entities_knob = Knob.integer("Entities per team", value=DEFAULT_ENTITIES_PER_TEAM, min_value=1, max_value=100, suffix="entities")
         self.fps_knob = Knob.integer("Snapshots per second", value=1, min_value=1, max_value=60, suffix="fps")
         self.mode_knob = ChoiceKnob("Mode", [mode.value for mode in Mode])
         self.map_knob = ChoiceKnob("Map", list(ARENA_PRESETS.keys()))
@@ -168,7 +170,7 @@ class ArenaSimulation(FormState):
 
         self.load_dropdown = Dropdown(
             "Load genome",
-            options=list_saved_genomes(),
+            options=list_simulation_saves(),
             on_select=self._on_genome_loaded,
         )
         self.save_button = Button("Save genome", action=self._on_save_genome)
@@ -182,12 +184,12 @@ class ArenaSimulation(FormState):
             return
 
         try:
-            saved_path = save_genome_bundle(
+            saved_path = save_simulation(
                 teams=self.last_snapshot.teams,
                 generation=self.last_snapshot.generation,
-                map_name=self.current_map,
+                world_config = self.gather_world_config()
             )
-            self.load_dropdown.options = list_saved_genomes()
+            self.load_dropdown.options = list_simulation_saves()
             self.status_message = f"Saved: {saved_path.name}"
             self.status_message_timer = 4.0
         except Exception as error:
@@ -200,14 +202,18 @@ class ArenaSimulation(FormState):
             return
 
         try:
-            genomes_dir = get_genomes_directory()
-            bundle = load_genome_bundle(genomes_dir / filename)
+            genomes_dir = get_saves_directory()
+            save = load_simulation(genomes_dir / filename)
             self.loaded_genomes = {
-                "red": bundle["red_genomes"],
-                "blue": bundle["blue_genomes"],
+                "red": save.red_genomes,
+                "blue": save.blue_genomes,
             }
-            count = len(bundle["red_genomes"])
-            self.status_message = f"Loaded {filename} [{count} champions, Gen {bundle['generation']}]"
+            self.set_world_config(save.world_config)
+
+
+            count = len(save.red_genomes)
+
+            self.status_message = f"Loaded {filename} [{count} champions, Gen {save.generation}]"
             self.status_message_timer = 4.0
         except Exception as error:
             self.status_message = f"Load failed: {error}"
@@ -271,6 +277,17 @@ class ArenaSimulation(FormState):
             initial_genomes=self.loaded_genomes,
         )
 
+    def set_world_config(self, config: WorldConfig) -> None:
+        """Applies world configuration parameters directly to interactive knobs and updates preview."""
+        self.entities_knob.value = config.entities_per_team
+        self.map_knob.value = config.map
+        self.max_turns_knob.value = config.max_turns
+        self.champions_knob.value = config.best_per_generation
+        self.mutation_rate_knob.value = config.mutation_rate_percent
+        self.exclusion_width_knob.value = config.exclusion_width
+        self.exclusion_height_knob.value = config.exclusion_height
+        self.update_map_preview()
+
     def gather_playback_settings(self) -> PlaybackSettings:
         """Extracts dynamic playback pacing parameters from interactive controls."""
         return PlaybackSettings(
@@ -285,15 +302,15 @@ class ArenaSimulation(FormState):
             self.gps = 0.0
             self._last_gps_time = time.perf_counter()
             self._last_gps_generation = 1
-            world_config = self.gather_world_config()
             playback_settings = self.gather_playback_settings()
             self._last_fps = playback_settings.snapshots_per_second
             self._last_mode = playback_settings.mode.value
+            config = self.gather_world_config()
 
             self.process = Process(
                 target=run_simulation_worker,
                 args=(
-                    world_config,
+                    config,
                     playback_settings,
                     self.playback_queue,
                     self.snapshot_queue,
@@ -308,7 +325,8 @@ class ArenaSimulation(FormState):
                 if self.process.is_alive():
                     self.process.terminate()
             self.process = None
-            # Drain remaining snapshots from queue to capture final match state
+            # Drain remaining snapshots from worker queue upon stop to capture
+            # the final match epoch and preserve latest telemetry for saving/inspection.
             while not self.snapshot_queue.empty():
                 try:
                     self.last_snapshot = self.snapshot_queue.get_nowait()

@@ -143,6 +143,11 @@ class ChoiceKnob(FormItem):
         if self.values:
             self.index = (self.index + delta) % len(self.values)
 
+    @value.setter
+    def value(self, target_value: str) -> None:
+        if target_value in self.values:
+            self.index = self.values.index(target_value)
+
     def on_activate(self) -> Command | None:
         self.on_adjust(1)
         return None

@@ -3,6 +3,8 @@ Configuration constants and global presets for the tactical arena scene.
 Provides arena grid dimensions, zoom scaling configurations, and genetic simulation parameters.
 """
 
+from .generators import ARENA_PRESETS
+
 # Spatial Grid Dimensions
 ARENA_WIDTH: int = 61
 ARENA_HEIGHT: int = 31
@@ -21,6 +23,10 @@ ZOOM_SCALES: list[tuple[int, int]] = [
 # Genetic VM & Genome
 GENOME_SIZE: int = 64
 MAX_VM_ACTIONS_PER_TICK: int = 15
+
+# Default World & Match Settings
+DEFAULT_ENTITIES_PER_TEAM: int = 10
+DEFAULT_MAP: str = next(iter(ARENA_PRESETS.keys()))
 
 # Evolution & Tournament Hyperparameters
 BEST_PER_GENERATION: int = 4

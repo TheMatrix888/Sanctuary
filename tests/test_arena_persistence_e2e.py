@@ -5,7 +5,7 @@ from multiprocessing import Event, Queue
 from sanctuary.core.geometry import Size
 from sanctuary.scenes.arena.config import GENOME_SIZE
 from sanctuary.scenes.arena.gladiator import create_gladiator
-from sanctuary.scenes.arena.persistence import save_genome_bundle
+from sanctuary.scenes.arena.persistence import save_simulation
 from sanctuary.scenes.arena.simulation import ArenaSimulation
 from sanctuary.scenes.arena.worker import (
     GenerationRecord,
@@ -18,7 +18,7 @@ from sanctuary.scenes.arena.worker import (
 
 def test_arena_simulation_save_and_load_flow(tmp_path, monkeypatch) -> None:
     # Point persistence directory to tmp_path
-    monkeypatch.setattr("sanctuary.scenes.arena.persistence.DEFAULT_GENOMES_DIR", tmp_path)
+    monkeypatch.setattr("sanctuary.scenes.arena.persistence.SAVES_DIR", tmp_path)
 
     sim = ArenaSimulation()
     assert sim.save_button.label == "Save latest snapshot genome [None]"
@@ -60,7 +60,7 @@ def test_arena_simulation_save_and_load_flow(tmp_path, monkeypatch) -> None:
     world_config = sim.gather_world_config()
     assert world_config.initial_genomes == sim.loaded_genomes
 
-    # Instantiate SimulationWorker and verify seeded gladiator genomes
+    # Instantiate SimulationWorker and verify seeded gladiator simulation_saves
     worker = SimulationWorker(
         world_config=world_config,
         playback_settings=PlaybackSettings(snapshots_per_second=10.0, mode=Mode.SIMULATION),

@@ -22,6 +22,8 @@ from .config import (
     BLOOD_FLOOR_HEAL_HP,
     BLOOD_FLOOR_SCORE,
     CENTER_APPROACH_MULTIPLIER,
+    DEFAULT_ENTITIES_PER_TEAM,
+    DEFAULT_MAP,
     GENOME_SIZE,
     MAX_GENERATION_TURNS,
     MAX_VM_ACTIONS_PER_TICK,
@@ -79,8 +81,8 @@ class Snapshot:
 @dataclass(slots=True, frozen=True)
 class WorldConfig:
     """Configurable execution parameters for tournament and visual pacing."""
-    entities_per_team: int
-    map: str
+    entities_per_team: int = DEFAULT_ENTITIES_PER_TEAM
+    map: str = DEFAULT_MAP
     max_turns: int = MAX_GENERATION_TURNS
     best_per_generation: int = BEST_PER_GENERATION
     mutation_rate_percent: float = MUTATION_RATE_PERCENT
@@ -218,7 +220,7 @@ class SimulationWorker:
         red_champion_genomes = [g.genome.copy() for g in self.red_team[:k_champions]]
         blue_champion_genomes = [g.genome.copy() for g in self.blue_team[:k_champions]]
 
-        # 3. Reproduction: cycle champion genomes and reset per-round score
+        # 3. Reproduction: cycle champion simulation_saves and reset per-round score
         def reproduce(team: list[Gladiator], champion_genomes: list[list[int]]) -> None:
             for i, gladiator in enumerate(team):
                 parent_genome = champion_genomes[i % len(champion_genomes)]
