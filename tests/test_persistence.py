@@ -2,6 +2,7 @@
 Unit tests for genome persistence, serialization, and version validation.
 """
 import pytest
+from sanctuary.core.geometry import Size
 from sanctuary.scenes.arena.config import GENOME_SIZE
 from sanctuary.scenes.arena.gladiator import create_gladiator
 from sanctuary.scenes.arena.models import WorldConfig
@@ -62,3 +63,23 @@ def test_version_validation_failure(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="Unsupported genome save version: 999"):
         load_simulation(bad_file)
+
+
+def test_load_exclusion_formats(tmp_path) -> None:
+    # 1. List/tuple format (standard JSON serialization of NamedTuple)
+    f1 = tmp_path / "save_list.json"
+    f1.write_text('{"version": 2, "world_config": {"exclusion_size": [25, 15]}}', encoding="utf-8")
+    s1 = load_simulation(f1)
+    assert s1.world_config.exclusion_size == Size(25, 15)
+
+    # 2. Dict format
+    f2 = tmp_path / "save_dict.json"
+    f2.write_text('{"version": 2, "world_config": {"exclusion_size": {"width": 25, "height": 15}}}', encoding="utf-8")
+    s2 = load_simulation(f2)
+    assert s2.world_config.exclusion_size == Size(25, 15)
+
+    # 3. Flat legacy keys
+    f3 = tmp_path / "save_flat.json"
+    f3.write_text('{"version": 2, "world_config": {"exclusion_width": 25, "exclusion_height": 15}}', encoding="utf-8")
+    s3 = load_simulation(f3)
+    assert s3.world_config.exclusion_size == Size(25, 15)

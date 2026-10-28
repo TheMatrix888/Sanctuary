@@ -114,7 +114,9 @@ def load_simulation(file_path: Path) -> SimulationSave:
     config_data = data.get("world_config")
     if isinstance(config_data, dict):
         raw_exclusion = config_data.get("exclusion_size")
-        if isinstance(raw_exclusion, dict):
+        if isinstance(raw_exclusion, (list, tuple)) and len(raw_exclusion) >= 2:
+            exclusion_size = Size(int(raw_exclusion[0]), int(raw_exclusion[1]))
+        elif isinstance(raw_exclusion, dict):
             exclusion_size = Size(
                 int(raw_exclusion.get("width", EXCLUSION_WIDTH)),
                 int(raw_exclusion.get("height", EXCLUSION_HEIGHT)),
