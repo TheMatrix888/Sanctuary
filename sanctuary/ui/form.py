@@ -70,11 +70,10 @@ class FormState(State):
 
         current_item = self.items[self.index]
         if current_item.is_capturing_input:
-            if hasattr(current_item, "handle_input"):
-                command = current_item.handle_input(input_handler)
-                if command is not None:
-                    return command
-                return None
+            command = current_item.handle_input(input_handler)
+            if command is not None:
+                return command
+            return None
 
         # Vertical navigation
         if input_handler.is_repeated(Key.UP) or input_handler.is_repeated(Key.W):
@@ -167,9 +166,9 @@ class FormState(State):
             )
             y += 1
 
-            # Render expanded sub-options if item is an open Dropdown
-            if getattr(item, "is_open", False) and hasattr(item, "draw_open_list"):
-                y = item.draw_open_list(screen, x=6, start_y=y, max_y=rows - 2)
+            # Render expanded sub-options if item is capturing input
+            if item.is_capturing_input:
+                y = item.draw_expanded(screen, x=6, start_y=y, max_y=rows - 2)
 
         # Dynamic contextual bottom help bar
         if self.items and 0 <= self.index < len(self.items) and self.items[self.index].is_selectable:

@@ -22,6 +22,14 @@ class FormItem(ABC):
         """Indicates whether this widget intercepts form navigation (modal focus)."""
         return False
 
+    def handle_input(self, input_handler: InputHandler) -> Command | None:
+        """Handles exclusive keyboard input when capturing input. Returns a Command if triggered."""
+        return None
+
+    def draw_expanded(self, screen: Screen, x: int, start_y: int, max_y: int) -> int:
+        """Renders expanded/modal overlay contents below the item row. Returns updated cursor Y."""
+        return start_y
+
     @abstractmethod
     def render_value(self) -> str:
         """Formatted string representation of current value to display beside the label."""
@@ -346,7 +354,7 @@ class Dropdown(FormItem):
 
         return None
 
-    def draw_open_list(self, screen: Screen, x: int, start_y: int, max_y: int) -> int:
+    def draw_expanded(self, screen: Screen, x: int, start_y: int, max_y: int) -> int:
         current_y = start_y
         if not self.options:
             screen.draw_text(

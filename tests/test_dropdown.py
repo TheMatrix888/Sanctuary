@@ -6,7 +6,7 @@ from sanctuary.core.input_handler import Key
 from sanctuary.core.screen import Screen
 from sanctuary.core.terminal import VirtualTerminal
 from sanctuary.ui.form import FormState
-from sanctuary.ui.widgets import Button, Dropdown
+from sanctuary.ui.widgets import Button, Dropdown, FormItem
 
 
 class MockInput:
@@ -86,7 +86,7 @@ def test_dropdown_modal_focus_in_form_state() -> None:
     assert form.index == 1
 
 
-def test_dropdown_draw_open_list() -> None:
+def test_dropdown_draw_expanded() -> None:
     terminal = VirtualTerminal(columns=80, rows=25)
     screen = Screen(terminal)
     dropdown = Dropdown(
@@ -101,3 +101,29 @@ def test_dropdown_draw_open_list() -> None:
     rendered_chars = "".join(cell.char for row in screen.back_buffer.cells for cell in row)
     assert "colosseum.json" in rendered_chars
     assert "bastions.json" in rendered_chars
+
+
+def test_base_form_item_defaults() -> None:
+    class DummyItem(FormItem):
+        def render_value(self) -> str:
+            return ""
+
+        def on_adjust(self, delta: int, multiplier: float = 1.0) -> None:
+            pass
+
+        def on_activate(self):
+            return None
+
+        def on_reset(self) -> None:
+            pass
+
+        def get_help_hint(self) -> str:
+            return ""
+
+    dummy = DummyItem()
+    dummy.label = "Dummy"
+    assert dummy.is_capturing_input is False
+    assert dummy.handle_input(MockInput()) is None
+    terminal = VirtualTerminal(columns=80, rows=25)
+    screen = Screen(terminal)
+    assert dummy.draw_expanded(screen, 0, 5, 20) == 5
