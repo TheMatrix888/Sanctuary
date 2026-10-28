@@ -168,3 +168,89 @@ def test_screen_fill_rect() -> None:
     boundary_rect = Rect(75, 20, 10, 10)
     screen.fill_rect(boundary_rect, char="@")
     assert screen.back_buffer.cells[24][79].char == "@"
+
+
+def test_simulation_generation_resets_on_subsequent_runs(monkeypatch) -> None:
+    """Verifies that loaded saves act as one-time seeds, and restarting simulation starts fresh from gen 1."""
+    sim = ArenaSimulation()
+    started_configs: list[WorldConfig] = []
+
+    class MockProcess:
+        def __init__(self, target, args):
+            self.target = target
+            self.args = args
+            started_configs.append(args[0])
+
+        def start(self):
+            pass
+
+        def join(self, timeout=None):
+            pass
+
+        def is_alive(self):
+            return False
+
+        def terminate(self):
+            pass
+
+    monkeypatch.setattr("sanctuary.scenes.arena.simulation.Process", MockProcess)
+
+    # 1. Simulate loading a saved genome from gen 134942
+    sim.loaded_generation = 134942
+    sim.loaded_genomes = {"red": [[1] * 64], "blue": [[2] * 64]}
+    sim.last_snapshot = "stale_snapshot"  # type: ignore
+
+    # 2. Start simulation: should use loaded values, then consume them and clear last_snapshot
+    sim._toggle_simulation()
+    assert sim.is_running is True
+    assert len(started_configs) == 1
+    assert started_configs[0].initial_generation == 134942
+    assert started_configs[0].initial_genomes == {"red": [[1] * 64], "blue": [[2] * 64]}
+    assert sim.loaded_generation == 1
+    assert sim.loaded_genomes is None
+    assert sim.last_snapshot is None
+
+    # 3. Stop simulation
+    sim._toggle_simulation()
+    assert sim.is_running is False
+
+    # 4. Start simulation again without loading save: must reset to generation 1 and random genomes
+    sim._toggle_simulation()
+    assert sim.is_running is True
+    assert len(started_configs) == 2
+    assert started_configs[1].initial_generation == 1
+    assert started_configs[1].initial_genomes is None
+    assert sim.loaded_generation == 1
+    assert sim.loaded_genomes is None
+    assert sim.last_snapshot is None
+
+
+def test_on_genome_loaded_clears_stale_snapshot(tmp_path) -> None:
+    """Verifies that loading a genome clears stale snapshots and refreshes save button label."""
+    from sanctuary.scenes.arena.config import GENOME_SIZE
+    from sanctuary.scenes.arena.gladiator import create_gladiator
+    from sanctuary.scenes.arena.models import GenerationRecord, Snapshot
+    from sanctuary.scenes.arena.persistence import save_simulation
+
+    sim = ArenaSimulation(saves_dir=tmp_path)
+
+    red_g = create_gladiator(0, 0, 10, 100, 100, "red", genome=[7] * GENOME_SIZE)
+    blue_g = create_gladiator(0, 0, 10, 100, 100, "blue", genome=[8] * GENOME_SIZE)
+    snap = Snapshot(
+        teams=[[red_g], [blue_g]],
+        tilemap=sim.map_preview,
+        turn=5,
+        generation=100,
+        record=GenerationRecord(generation=100, turns=5, survivors=2),
+    )
+    sim.last_snapshot = snap
+    sim._update_active_items()
+    assert "Gen 100" in sim.save_button.label
+
+    save_path = save_simulation([[red_g], [blue_g]], generation=100, world_config=sim.gather_world_config(), directory=tmp_path)
+
+    sim._on_genome_loaded(save_path.name)
+    assert sim.loaded_generation == 100
+    assert sim.last_snapshot is None
+    assert sim.save_button.label == "Save latest snapshot genome [None]"
+

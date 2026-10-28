@@ -16,11 +16,8 @@ from sanctuary.scenes.arena.models import (
 from sanctuary.scenes.arena.worker import SimulationWorker
 
 
-def test_arena_simulation_save_and_load_flow(tmp_path, monkeypatch) -> None:
-    # Point persistence directory to tmp_path
-    monkeypatch.setattr("sanctuary.scenes.arena.persistence.SAVES_DIR", tmp_path)
-
-    sim = ArenaSimulation()
+def test_arena_simulation_save_and_load_flow(tmp_path) -> None:
+    sim = ArenaSimulation(saves_dir=tmp_path)
     assert sim.save_button.label == "Save latest snapshot genome [None]"
 
     # Attempting to save without snapshot shows warning

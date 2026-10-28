@@ -5,6 +5,7 @@ Coordinates evolutionary bytecode gladiators in an isolated multiprocessing work
 import queue
 from multiprocessing import Event, Process, Queue
 from multiprocessing.synchronize import Event as EventType
+from pathlib import Path
 
 from sanctuary.core.formatting import format_compact
 from sanctuary.core.geometry import Rect, Size
@@ -15,7 +16,7 @@ from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button, ChoiceKnob, Dropdown, Header, Knob, Spacer, Toggle
 
 from .persistence import (
-    get_saves_directory,
+    SAVES_DIR,
     list_simulation_saves,
     load_simulation,
     save_simulation,
@@ -82,8 +83,10 @@ class ArenaSimulation(FormState):
     _last_fps: float
     _last_mode: str
     gps_tracker: GpsTracker
+    saves_dir: Path
 
-    def __init__(self) -> None:
+    def __init__(self, saves_dir: Path = SAVES_DIR) -> None:
+        self.saves_dir = saves_dir
         self.is_running = False
         self.snapshot_queue = Queue(maxsize=2)
         self.playback_queue = Queue(maxsize=10)
@@ -172,7 +175,7 @@ class ArenaSimulation(FormState):
 
         self.load_dropdown = Dropdown(
             "Load genome",
-            options=list_simulation_saves(),
+            options=list_simulation_saves(self.saves_dir),
             on_select=self._on_genome_loaded,
         )
         self.save_button = Button("Save genome", action=self._on_save_genome)
@@ -189,9 +192,10 @@ class ArenaSimulation(FormState):
             saved_path = save_simulation(
                 teams=self.last_snapshot.teams,
                 generation=self.last_snapshot.generation,
-                world_config = self.gather_world_config()
+                world_config=self.gather_world_config(),
+                directory=self.saves_dir,
             )
-            self.load_dropdown.options = list_simulation_saves()
+            self.load_dropdown.options = list_simulation_saves(self.saves_dir)
             self.status_message = f"Saved: {saved_path.name}"
             self.status_message_timer = 4.0
         except Exception as error:
@@ -204,17 +208,21 @@ class ArenaSimulation(FormState):
             return
 
         try:
-            genomes_dir = get_saves_directory()
-            save = load_simulation(genomes_dir / filename)
+            path = Path(filename)
+            if not path.is_file():
+                path = self.saves_dir / path
+            save = load_simulation(path)
             self.loaded_genomes = {
                 "red": save.red_genomes,
                 "blue": save.blue_genomes,
             }
             self.loaded_generation = save.generation
             self.set_world_config(save.world_config)
+            self.last_snapshot = None
+            self._update_active_items()
 
             count = len(save.red_genomes)
-            self.status_message = f"Loaded {filename} [{count} champions, Gen {format_compact(save.generation)}]"
+            self.status_message = f"Loaded {path.name} [{count} champions, Gen {format_compact(save.generation)}]"
             self.status_message_timer = 4.0
         except Exception as error:
             self.status_message = f"Load failed: {error}"
@@ -306,6 +314,9 @@ class ArenaSimulation(FormState):
             self._last_fps = playback_settings.snapshots_per_second
             self._last_mode = playback_settings.mode.value
             config = self.gather_world_config()
+            self.loaded_generation = 1
+            self.loaded_genomes = None
+            self.last_snapshot = None
 
             self.process = Process(
                 target=run_simulation_worker,
@@ -330,7 +341,7 @@ class ArenaSimulation(FormState):
             while not self.snapshot_queue.empty():
                 try:
                     self.last_snapshot = self.snapshot_queue.get_nowait()
-                except Exception:
+                except queue.Empty:
                     break
             self.gps_tracker.reset()
 
