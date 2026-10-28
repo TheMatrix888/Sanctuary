@@ -6,6 +6,7 @@ import queue
 from multiprocessing import Event, Process, Queue
 from multiprocessing.synchronize import Event as EventType
 
+from sanctuary.core.formatting import format_compact
 from sanctuary.core.geometry import Rect, Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
@@ -213,7 +214,7 @@ class ArenaSimulation(FormState):
             self.set_world_config(save.world_config)
 
             count = len(save.red_genomes)
-            self.status_message = f"Loaded {filename} [{count} champions, Gen {save.generation}]"
+            self.status_message = f"Loaded {filename} [{count} champions, Gen {format_compact(save.generation)}]"
             self.status_message_timer = 4.0
         except Exception as error:
             self.status_message = f"Load failed: {error}"
@@ -239,7 +240,7 @@ class ArenaSimulation(FormState):
             ]
         else:
             if self.last_snapshot is not None:
-                self.save_button.label = f"Save latest snapshot genome (Gen {self.last_snapshot.generation})"
+                self.save_button.label = f"Save latest snapshot genome (Gen {format_compact(self.last_snapshot.generation)})"
             else:
                 self.save_button.label = "Save latest snapshot genome [None]"
 
@@ -404,7 +405,7 @@ class ArenaSimulation(FormState):
                     gladiator.draw(screen, x_start, y_start)
 
             if self.gps_tracker.rate > 0 and mode == Mode.SIMULATION:
-                gps_suffix = f" ({self.gps_tracker.rate:.0f} gen/s)"
+                gps_suffix = f" ({format_compact(self.gps_tracker.rate)} gen/s)"
             else:
                 gps_suffix = ""
 
@@ -412,13 +413,13 @@ class ArenaSimulation(FormState):
             screen.draw_text(
                 x_start,
                 y_info,
-                f"generation {snapshot.generation}{gps_suffix} | turn {snapshot.turn}",
+                f"generation {format_compact(snapshot.generation)}{gps_suffix} | turn {snapshot.turn}",
                 fg_color=status_fg,
             )
             screen.draw_text(
                 x_start,
                 y_info + 1,
-                f"best generation {snapshot.record.generation} [{snapshot.record.survivors} alive, {snapshot.record.turns} turns]",
+                f"best generation {format_compact(snapshot.record.generation)} [{snapshot.record.survivors} alive, {snapshot.record.turns} turns]",
                 fg_color=status_fg,
             )
         else:
