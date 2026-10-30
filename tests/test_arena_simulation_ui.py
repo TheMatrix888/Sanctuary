@@ -7,7 +7,7 @@ from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import StartProcess, TerminateProcess
 from sanctuary.core.terminal import VirtualTerminal
-from sanctuary.scenes.arena.config import ARENA_HEIGHT, ARENA_WIDTH
+from sanctuary.scenes.arena.config import ARENA_HEIGHT, ARENA_SIMULATION_PROCESS_NAME, ARENA_WIDTH
 from sanctuary.scenes.arena.generators import generate_tectonic_chasm
 from sanctuary.scenes.arena.models import BlinkIndicator, GpsTracker, WorldConfig
 from sanctuary.scenes.arena.simulation import ArenaSimulation
@@ -177,9 +177,11 @@ def test_simulation_generation_resets_on_subsequent_runs(monkeypatch) -> None:
     started_configs: list[WorldConfig] = []
 
     class MockProcess:
-        def __init__(self, target, args):
+        def __init__(self, target, args, name: str | None = None, daemon: bool | None = None):
             self.target = target
             self.args = args
+            self.name = name
+            self.daemon = daemon
             started_configs.append(args[0])
 
         def start(self):
@@ -215,6 +217,7 @@ def test_simulation_generation_resets_on_subsequent_runs(monkeypatch) -> None:
     # 3. Stop simulation
     cmd2 = sim._toggle_simulation()
     assert isinstance(cmd2, TerminateProcess)
+    assert cmd2.name == ARENA_SIMULATION_PROCESS_NAME
     assert sim.is_running is False
 
     # 4. Start simulation again without loading save: must reset to generation 1 and random genomes

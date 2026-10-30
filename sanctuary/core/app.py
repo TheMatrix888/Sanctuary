@@ -20,7 +20,7 @@ class App:
         self.input_handler = platform.input_handler
         self.states: list[State] = []
         self.metrics_toggle = False
-        self.processes: set[Process] = set()
+        self.processes: dict[str, Process] = {}
 
     def run(self) -> None:
         try:
@@ -84,11 +84,15 @@ class App:
             case ToggleMetrics():
                 self.toggle_metrics()
             case StartProcess(process):
-                self.processes.add(process)
+                old_proc = self.processes.pop(process.name, None)
+                if old_proc:
+                    self._stop_process(old_proc)
+                self.processes[process.name] = process
                 process.start()
-            case TerminateProcess(process):
-                self._stop_process(process)
-                self.processes.discard(process)
+            case TerminateProcess(name):
+                proc = self.processes.pop(name, None)
+                if proc:
+                    self._stop_process(proc)
 
     def push_state(self, state: State) -> None:
         self.states.append(state)
@@ -106,7 +110,7 @@ class App:
     def quit(self) -> None:
         while len(self.states) > 0:
             self.pop_state()
-        for process in list(self.processes):
+        for process in list(self.processes.values()):
             self._stop_process(process)
         self.processes.clear()
 

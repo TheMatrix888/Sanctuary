@@ -54,8 +54,8 @@ class StartProcess(Command):
 
 @dataclass(slots=True, frozen=True)
 class TerminateProcess(Command):
-    """Terminates an operating system background process and unregisters it from application tracking."""
-    process: Process
+    """Terminates an operating system background process by name and unregisters it from application tracking."""
+    name: str
 
 
 class State:

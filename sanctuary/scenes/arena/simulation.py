@@ -24,6 +24,7 @@ from .persistence import (
 
 from .config import (
     ARENA_HEIGHT,
+    ARENA_SIMULATION_PROCESS_NAME,
     ARENA_WIDTH,
     DEFAULT_ENTITIES_PER_TEAM,
     EXCLUSION_HEIGHT,
@@ -73,7 +74,6 @@ class ArenaSimulation(FormState):
     loaded_generation: int
     status_message: str
     status_message_timer: float
-    process: Process | None
     snapshot_queue: Queue
     playback_queue: Queue
     stop_event: EventType
@@ -91,7 +91,6 @@ class ArenaSimulation(FormState):
         self.snapshot_queue = Queue(maxsize=2)
         self.playback_queue = Queue(maxsize=10)
         self.stop_event = Event()
-        self.process = None
         self.last_snapshot = None
         self._last_fps = 0.0
         self._last_mode = ""
@@ -318,7 +317,7 @@ class ArenaSimulation(FormState):
             self.loaded_genomes = None
             self.last_snapshot = None
 
-            self.process = Process(
+            proc = Process(
                 target=run_simulation_worker,
                 args=(
                     config,
@@ -327,15 +326,15 @@ class ArenaSimulation(FormState):
                     self.snapshot_queue,
                     self.stop_event,
                 ),
+                name=ARENA_SIMULATION_PROCESS_NAME,
+                daemon=True,
             )
             self.is_running = True
             self.sim_button.label = "Stop simulation"
             self._update_active_items()
-            return StartProcess(self.process)
+            return StartProcess(proc)
         else:
             self.stop_event.set()
-            process_to_stop = self.process
-            self.process = None
             # Drain remaining snapshots from worker queue upon stop to capture
             # the final match epoch and preserve latest telemetry for saving/inspection.
             while not self.snapshot_queue.empty():
@@ -348,9 +347,7 @@ class ArenaSimulation(FormState):
             self.is_running = False
             self.sim_button.label = "Start simulation"
             self._update_active_items()
-            if process_to_stop is not None:
-                return TerminateProcess(process_to_stop)
-            return None
+            return TerminateProcess(ARENA_SIMULATION_PROCESS_NAME)
 
     def update(self, dt: float, screen_size: Size) -> None:
         super().update(dt, screen_size)

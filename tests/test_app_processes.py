@@ -77,17 +77,18 @@ def create_test_app() -> App:
 
 def test_app_start_and_terminate_process_commands() -> None:
     app = create_test_app()
-    proc = MockProcess()
+    proc = MockProcess(name="custom_worker")
 
     # Execute StartProcess
     app._execute(StartProcess(proc))  # type: ignore
     assert proc.is_started is True
-    assert proc in app.processes
+    assert "custom_worker" in app.processes
+    assert app.processes["custom_worker"] is proc
 
     # Execute TerminateProcess
-    app._execute(TerminateProcess(proc))  # type: ignore
+    app._execute(TerminateProcess("custom_worker"))
     assert proc.joined is True
-    assert proc not in app.processes
+    assert "custom_worker" not in app.processes
 
 
 def test_app_quit_terminates_all_running_processes() -> None:

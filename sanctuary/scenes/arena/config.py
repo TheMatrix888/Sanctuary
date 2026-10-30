@@ -42,3 +42,6 @@ CENTER_APPROACH_MULTIPLIER: int = 5
 
 # Telemetry & Pacing
 GPS_METRICS_INTERVAL: float = 1.0
+
+# Background Process Identifier
+ARENA_SIMULATION_PROCESS_NAME: str = "arena_simulation"
