@@ -114,7 +114,7 @@ class OvercomingState(State):
             self._restore_geometry()
             return Pop()
 
-        if input_handler.just_pressed(Key.SPACE) or input_handler.just_pressed(Key.ENTER):
+        if input_handler.just_pressed(Key.SPACE, Key.ENTER):
             self.is_active = not self.is_active
             if not self.is_active:
                 self._restore_geometry()

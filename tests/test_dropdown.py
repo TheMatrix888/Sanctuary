@@ -14,14 +14,14 @@ class MockInput:
         self._pressed = pressed or []
         self._repeated = repeated or []
 
-    def just_pressed(self, key: Key) -> bool:
-        return key in self._pressed
+    def just_pressed(self, *keys: Key) -> bool:
+        return any(k in self._pressed for k in keys)
 
-    def is_pressed(self, key: Key) -> bool:
-        return key in self._pressed or key in self._repeated
+    def is_pressed(self, *keys: Key) -> bool:
+        return any(k in self._pressed or k in self._repeated for k in keys)
 
-    def is_repeated(self, key: Key) -> bool:
-        return key in self._repeated
+    def is_repeated(self, *keys: Key) -> bool:
+        return any(k in self._repeated for k in keys)
 
 
 def test_dropdown_basic_lifecycle() -> None:

@@ -33,10 +33,10 @@ class MockInput:
     def update(self) -> None:
         pass
 
-    def just_pressed(self, key: Key) -> bool:
+    def just_pressed(self, *keys: Key) -> bool:
         return False
 
-    def is_pressed(self, key: Key) -> bool:
+    def is_pressed(self, *keys: Key) -> bool:
         return False
 
     def is_repeated(self, *keys: Key) -> bool:

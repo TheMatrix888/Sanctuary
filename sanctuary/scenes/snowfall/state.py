@@ -98,9 +98,9 @@ class SnowfallState(State):
             self.is_paused = not self.is_paused
 
         # Adjust flake count
-        if input_handler.is_repeated(Key.UP) or input_handler.is_repeated(Key.BRACKET_RIGHT):
+        if input_handler.is_repeated(Key.UP, Key.BRACKET_RIGHT):
             self.target_count = min(self.target_count + SNOWFLAKE_STEP, MAX_SNOWFLAKES)
-        elif input_handler.is_repeated(Key.DOWN) or input_handler.is_repeated(Key.BRACKET_LEFT):
+        elif input_handler.is_repeated(Key.DOWN, Key.BRACKET_LEFT):
             self.target_count = max(self.target_count - SNOWFLAKE_STEP, MIN_SNOWFLAKES)
 
         # Modulate wind force (bounded to >= 0.0 as oscillation functions are naturally bidirectional)

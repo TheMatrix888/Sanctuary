@@ -334,11 +334,11 @@ class Dropdown(FormItem):
             self.is_open = False
             return None
 
-        if input_handler.is_repeated(Key.UP) or input_handler.is_repeated(Key.W):
+        if input_handler.is_repeated(Key.UP, Key.W):
             self.selected_index = (self.selected_index - 1) % len(self.options)
             return None
 
-        if input_handler.is_repeated(Key.DOWN) or input_handler.is_repeated(Key.S):
+        if input_handler.is_repeated(Key.DOWN, Key.S):
             self.selected_index = (self.selected_index + 1) % len(self.options)
             return None
 

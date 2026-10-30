@@ -124,7 +124,7 @@ class OrbitalWindowState(State):
             self._restore_geometry()
             return Pop()
 
-        if input_handler.just_pressed(Key.SPACE) or input_handler.just_pressed(Key.ENTER):
+        if input_handler.just_pressed(Key.SPACE, Key.ENTER):
             self.is_orbiting = not self.is_orbiting
 
         if input_handler.just_pressed(Key.F3):
