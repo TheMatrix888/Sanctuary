@@ -5,7 +5,7 @@ from sanctuary.core.config import DisplayConfig
 from sanctuary.core.geometry import Rect, Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Batch, Pop, Push, StartProcess, TerminateProcess
+from sanctuary.core.state import Pop, Push, StartProcess, TerminateProcess
 from sanctuary.core.terminal import VirtualTerminal
 from sanctuary.scenes.arena.config import ARENA_HEIGHT, ARENA_SIMULATION_PROCESS_NAME, ARENA_WIDTH
 from sanctuary.scenes.arena.generators import generate_tectonic_chasm
@@ -206,10 +206,10 @@ def test_simulation_generation_resets_on_subsequent_runs(monkeypatch) -> None:
 
     # 2. Start simulation: should use loaded values, then consume them and clear last_snapshot
     cmd1 = sim._on_start_button()
-    assert isinstance(cmd1, Batch)
-    assert isinstance(cmd1.commands[0], StartProcess)
-    assert isinstance(cmd1.commands[1], Push)
-    running = cmd1.commands[1].state
+    assert isinstance(cmd1, tuple)
+    assert isinstance(cmd1[0], StartProcess)
+    assert isinstance(cmd1[1], Push)
+    running = cmd1[1].state
     assert isinstance(running, ArenaRunningState)
     assert sim.is_running is True
     assert running.is_running is True
@@ -222,17 +222,18 @@ def test_simulation_generation_resets_on_subsequent_runs(monkeypatch) -> None:
 
     # 3. Stop simulation
     cmd2 = running._on_stop()
-    assert isinstance(cmd2, Batch)
-    assert isinstance(cmd2.commands[0], TerminateProcess)
-    assert cmd2.commands[0].name == ARENA_SIMULATION_PROCESS_NAME
-    assert isinstance(cmd2.commands[1], Pop)
+    assert isinstance(cmd2, tuple)
+    assert isinstance(cmd2[0], TerminateProcess)
+    assert cmd2[0].name == ARENA_SIMULATION_PROCESS_NAME
+    assert isinstance(cmd2[1], Pop)
     assert sim.is_running is False
     assert running.is_running is False
 
     # 4. Start simulation again without loading save: must reset to generation 1 and random genomes
     cmd3 = sim._on_start_button()
-    assert isinstance(cmd3, Batch)
-    assert isinstance(cmd3.commands[0], StartProcess)
+    assert isinstance(cmd3, tuple)
+    assert isinstance(cmd3[0], StartProcess)
+    assert isinstance(cmd3[1], Push)
     assert sim.is_running is True
     assert len(started_configs) == 2
     assert started_configs[1].initial_generation == 1

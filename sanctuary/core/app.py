@@ -2,6 +2,7 @@
 Application lifecycle manager for Sanctuary.
 Drives the central state stack, input polling, physics update, and differential rendering loop.
 """
+from collections.abc import Sequence
 from multiprocessing import Process
 
 from sanctuary.core.config import DEFAULT_DISPLAY_CONFIG, DisplayConfig
@@ -9,9 +10,9 @@ from sanctuary.core.input_handler import Key
 from sanctuary.core.platform import Platform
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import (
-    Batch,
     Change,
     Command,
+    CommandResult,
     Pop,
     Push,
     Quit,
@@ -82,11 +83,13 @@ class App:
                 process.terminate()
                 process.join(timeout=0.5)
 
-    def _execute(self, command: Command) -> None:
+    def _execute(self, command: Command | Sequence[Command]) -> None:
+        if isinstance(command, (list, tuple)):
+            for cmd in command:
+                self._execute(cmd)
+            return
+
         match command:
-            case Batch(commands):
-                for cmd in commands:
-                    self._execute(cmd)
             case Push(state):
                 self.push_state(state)
             case Change(state):

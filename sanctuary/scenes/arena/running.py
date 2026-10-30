@@ -14,7 +14,7 @@ from sanctuary.core.formatting import format_compact
 from sanctuary.core.geometry import Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Batch, Command, Pop, TerminateProcess
+from sanctuary.core.state import CommandResult, Pop, TerminateProcess
 from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button, ChoiceKnob, Header, Knob, Spacer
 
@@ -129,7 +129,7 @@ class ArenaRunningState(FormState):
             mode=Mode(self.mode_knob.value),
         )
 
-    def _on_stop(self) -> Command:
+    def _on_stop(self) -> CommandResult:
         """Stops background evolution worker, captures trailing snapshot, and returns to setup state."""
         self.stop_event.set()
         while not self.snapshot_queue.empty():
@@ -149,7 +149,7 @@ class ArenaRunningState(FormState):
         else:
             self.setup_state.save_button.label = "Save latest snapshot genome [None]"
 
-        return Batch(TerminateProcess(ARENA_SIMULATION_PROCESS_NAME), Pop())
+        return TerminateProcess(ARENA_SIMULATION_PROCESS_NAME), Pop()
 
     def _on_save(self) -> None:
         """Serializes current active teams into a timestamped genome bundle."""

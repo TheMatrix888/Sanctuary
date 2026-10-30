@@ -10,7 +10,7 @@ from sanctuary.core.formatting import format_compact
 from sanctuary.core.geometry import Rect, Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Batch, Command, Pop, Push, StartProcess
+from sanctuary.core.state import CommandResult, Pop, Push, StartProcess
 from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button, ChoiceKnob, Dropdown, Header, Knob, Spacer, Toggle
 
@@ -176,7 +176,7 @@ class ArenaSetupState(FormState):
         self.save_button = Button("Save latest snapshot genome [None]", action=self._on_save_genome)
         self.back_button = Button("Back", action=Pop())
 
-    def _on_start_button(self) -> Command:
+    def _on_start_button(self) -> CommandResult:
         """Pushes active running state or initializes fresh tournament worker."""
         if self.running_state is not None and self.running_state.is_running:
             return Push(self.running_state)
@@ -195,7 +195,7 @@ class ArenaSetupState(FormState):
         proc = running.create_worker_process()
         running.is_running = True
         self.start_button.label = "View active simulation"
-        return Batch(StartProcess(proc), Push(running))
+        return StartProcess(proc), Push(running)
 
     def _on_save_genome(self) -> None:
         """Serializes last captured snapshot teams into a timestamped genome bundle."""
