@@ -24,7 +24,8 @@ from .gladiator import (
     Gladiator,
     create_gladiator,
 )
-from .simulation import ArenaSimulation
+from .setup import ArenaSetupState
+from .running import ArenaRunningState
 from .models import (
     BlinkIndicator,
     GenerationRecord,
@@ -67,7 +68,8 @@ __all__ = [
     "ARENA_WIDTH",
     "ARENA_PRESETS",
     "Arena",
-    "ArenaSimulation",
+    "ArenaSetupState",
+    "ArenaRunningState",
     "BLOOD_FLOOR",
     "BLOOD_FLOOR_TEXTURE",
     "BLUE_GLADIATOR_TEXTURE",

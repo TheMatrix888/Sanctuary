@@ -3,7 +3,7 @@ Interactive hierarchical menu navigation system for Sanctuary.
 Built on top of FormState and FormItem widgets.
 """
 from sanctuary.core.state import Pop, Push, Quit
-from sanctuary.scenes.arena import Arena, ArenaSimulation
+from sanctuary.scenes.arena import Arena, ArenaSetupState
 from sanctuary.scenes.demos import (
     BouncingBoxState,
     BouncingHammerState,
@@ -41,7 +41,7 @@ def create_main_menu() -> FormState:
         title="Sanctuary Main Menu",
         items=[
             Button("Arena", lambda: Push(Arena())),
-            Button("Arena simulation", Push(ArenaSimulation())),
+            Button("Arena simulation", Push(ArenaSetupState())),
             Button("Demos", Push(demos_menu())),
             Button("Quit", Quit()),
         ],

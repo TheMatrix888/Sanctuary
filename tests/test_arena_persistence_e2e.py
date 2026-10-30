@@ -6,7 +6,8 @@ from sanctuary.core.geometry import Size
 from sanctuary.scenes.arena.config import GENOME_SIZE
 from sanctuary.scenes.arena.gladiator import create_gladiator
 from sanctuary.scenes.arena.persistence import save_simulation
-from sanctuary.scenes.arena.simulation import ArenaSimulation
+from sanctuary.scenes.arena.setup import ArenaSetupState
+from sanctuary.scenes.arena.running import ArenaRunningState
 from sanctuary.scenes.arena.models import (
     GenerationRecord,
     Mode,
@@ -17,7 +18,7 @@ from sanctuary.scenes.arena.worker import SimulationWorker
 
 
 def test_arena_simulation_save_and_load_flow(tmp_path) -> None:
-    sim = ArenaSimulation(saves_dir=tmp_path)
+    sim = ArenaSetupState(saves_dir=tmp_path)
     assert sim.save_button.label == "Save latest snapshot genome [None]"
 
     # Attempting to save without snapshot shows warning
@@ -38,7 +39,7 @@ def test_arena_simulation_save_and_load_flow(tmp_path) -> None:
         record=GenerationRecord(generation=25, turns=10, survivors=2),
     )
     sim.last_snapshot = mock_snapshot
-    sim._update_active_items()
+    sim.update(0.1, Size(100, 40))
     assert sim.save_button.label == "Save latest snapshot genome (Gen 25)"
 
     # Save genome
@@ -77,24 +78,30 @@ def test_arena_simulation_save_and_load_flow(tmp_path) -> None:
 
 
 def test_stop_simulation_preserves_last_snapshot() -> None:
-    sim = ArenaSimulation()
-    sim.is_running = True
+    setup = ArenaSetupState()
+    running = ArenaRunningState(
+        setup_state=setup,
+        world_config=setup.gather_world_config(),
+        saves_dir=setup.saves_dir,
+    )
+    running.is_running = True
 
     # Put snapshot into queue
     red_g1 = create_gladiator(0, 0, 10, 100, 100, "red", genome=[99] * GENOME_SIZE)
     blue_g1 = create_gladiator(0, 0, 10, 100, 100, "blue", genome=[99] * GENOME_SIZE)
     snap = Snapshot(
         teams=[[red_g1], [blue_g1]],
-        tilemap=sim.map_preview,
+        tilemap=setup.map_preview,
         turn=5,
         generation=42,
         record=GenerationRecord(generation=42, turns=5, survivors=2),
     )
-    sim.snapshot_queue.put(snap)
+    running.snapshot_queue.put(snap)
 
     # Stop simulation
-    sim._toggle_simulation()
-    assert sim.is_running is False
-    assert sim.last_snapshot is not None
-    assert sim.last_snapshot.generation == 42
-    assert sim.save_button.label == "Save latest snapshot genome (Gen 42)"
+    running._on_stop()
+    assert running.is_running is False
+    assert running.last_snapshot is not None
+    assert setup.last_snapshot is not None
+    assert setup.last_snapshot.generation == 42
+    assert setup.save_button.label == "Save latest snapshot genome (Gen 42)"

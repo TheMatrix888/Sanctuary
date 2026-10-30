@@ -5,18 +5,19 @@ from sanctuary.core.config import DisplayConfig
 from sanctuary.core.geometry import Rect, Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import StartProcess, TerminateProcess
+from sanctuary.core.state import Batch, Pop, Push, StartProcess, TerminateProcess
 from sanctuary.core.terminal import VirtualTerminal
 from sanctuary.scenes.arena.config import ARENA_HEIGHT, ARENA_SIMULATION_PROCESS_NAME, ARENA_WIDTH
 from sanctuary.scenes.arena.generators import generate_tectonic_chasm
 from sanctuary.scenes.arena.models import BlinkIndicator, GpsTracker, WorldConfig
-from sanctuary.scenes.arena.simulation import ArenaSimulation
+from sanctuary.scenes.arena.setup import ArenaSetupState
+from sanctuary.scenes.arena.running import ArenaRunningState
 from sanctuary.scenes.arena.tiles import BLOOD_FLOOR
 from sanctuary.ui.widgets import Toggle
 
 
 def test_arena_simulation_widgets_and_config() -> None:
-    sim = ArenaSimulation()
+    sim = ArenaSetupState()
     assert sim.entities_knob.value == 10
     assert sim.max_turns_knob.value == 200
     assert sim.champions_knob.value == 4
@@ -46,16 +47,16 @@ def test_arena_simulation_widgets_and_config() -> None:
 
 
 def test_exclusion_zone_blinking_timer() -> None:
-    sim = ArenaSimulation()
-    assert sim._exclusion_visible is True
+    sim = ArenaSetupState()
+    assert sim.exclusion_blinker.is_visible is True
 
     # Tick 0.5s -> should toggle to False
     sim.update(0.5, Size(width=100, height=40))
-    assert sim._exclusion_visible is False
+    assert sim.exclusion_blinker.is_visible is False
 
     # Tick another 0.5s -> should toggle back to True
     sim.update(0.5, Size(width=100, height=40))
-    assert sim._exclusion_visible is True
+    assert sim.exclusion_blinker.is_visible is True
 
 
 def test_toggle_widget_activation_and_reset() -> None:
@@ -73,7 +74,7 @@ def test_toggle_widget_activation_and_reset() -> None:
 
 
 def test_champions_knob_dynamic_limiter() -> None:
-    sim = ArenaSimulation()
+    sim = ArenaSetupState()
     assert sim.entities_knob.value == 10
     assert sim.champions_knob.value == 4
     assert sim.champions_knob.max_value == 10
@@ -173,7 +174,7 @@ def test_screen_fill_rect() -> None:
 
 def test_simulation_generation_resets_on_subsequent_runs(monkeypatch) -> None:
     """Verifies that loaded saves act as one-time seeds, and restarting simulation starts fresh from gen 1."""
-    sim = ArenaSimulation()
+    sim = ArenaSetupState()
     started_configs: list[WorldConfig] = []
 
     class MockProcess:
@@ -196,7 +197,7 @@ def test_simulation_generation_resets_on_subsequent_runs(monkeypatch) -> None:
         def terminate(self):
             pass
 
-    monkeypatch.setattr("sanctuary.scenes.arena.simulation.Process", MockProcess)
+    monkeypatch.setattr("sanctuary.scenes.arena.running.Process", MockProcess)
 
     # 1. Simulate loading a saved genome from gen 134942
     sim.loaded_generation = 134942
@@ -204,9 +205,14 @@ def test_simulation_generation_resets_on_subsequent_runs(monkeypatch) -> None:
     sim.last_snapshot = "stale_snapshot"  # type: ignore
 
     # 2. Start simulation: should use loaded values, then consume them and clear last_snapshot
-    cmd1 = sim._toggle_simulation()
-    assert isinstance(cmd1, StartProcess)
+    cmd1 = sim._on_start_button()
+    assert isinstance(cmd1, Batch)
+    assert isinstance(cmd1.commands[0], StartProcess)
+    assert isinstance(cmd1.commands[1], Push)
+    running = cmd1.commands[1].state
+    assert isinstance(running, ArenaRunningState)
     assert sim.is_running is True
+    assert running.is_running is True
     assert len(started_configs) == 1
     assert started_configs[0].initial_generation == 134942
     assert started_configs[0].initial_genomes == {"red": [[1] * 64], "blue": [[2] * 64]}
@@ -215,14 +221,18 @@ def test_simulation_generation_resets_on_subsequent_runs(monkeypatch) -> None:
     assert sim.last_snapshot is None
 
     # 3. Stop simulation
-    cmd2 = sim._toggle_simulation()
-    assert isinstance(cmd2, TerminateProcess)
-    assert cmd2.name == ARENA_SIMULATION_PROCESS_NAME
+    cmd2 = running._on_stop()
+    assert isinstance(cmd2, Batch)
+    assert isinstance(cmd2.commands[0], TerminateProcess)
+    assert cmd2.commands[0].name == ARENA_SIMULATION_PROCESS_NAME
+    assert isinstance(cmd2.commands[1], Pop)
     assert sim.is_running is False
+    assert running.is_running is False
 
     # 4. Start simulation again without loading save: must reset to generation 1 and random genomes
-    cmd3 = sim._toggle_simulation()
-    assert isinstance(cmd3, StartProcess)
+    cmd3 = sim._on_start_button()
+    assert isinstance(cmd3, Batch)
+    assert isinstance(cmd3.commands[0], StartProcess)
     assert sim.is_running is True
     assert len(started_configs) == 2
     assert started_configs[1].initial_generation == 1
@@ -239,7 +249,7 @@ def test_on_genome_loaded_clears_stale_snapshot(tmp_path) -> None:
     from sanctuary.scenes.arena.models import GenerationRecord, Snapshot
     from sanctuary.scenes.arena.persistence import save_simulation
 
-    sim = ArenaSimulation(saves_dir=tmp_path)
+    sim = ArenaSetupState(saves_dir=tmp_path)
 
     red_g = create_gladiator(0, 0, 10, 100, 100, "red", genome=[7] * GENOME_SIZE)
     blue_g = create_gladiator(0, 0, 10, 100, 100, "blue", genome=[8] * GENOME_SIZE)
@@ -251,12 +261,13 @@ def test_on_genome_loaded_clears_stale_snapshot(tmp_path) -> None:
         record=GenerationRecord(generation=100, turns=5, survivors=2),
     )
     sim.last_snapshot = snap
-    sim._update_active_items()
+    sim.update(0.1, Size(100, 40))
     assert "Gen 100" in sim.save_button.label
 
     save_path = save_simulation([[red_g], [blue_g]], generation=100, world_config=sim.gather_world_config(), directory=tmp_path)
 
     sim._on_genome_loaded(save_path.name)
+    sim.update(0.1, Size(100, 40))
     assert sim.loaded_generation == 100
     assert sim.last_snapshot is None
     assert sim.save_button.label == "Save latest snapshot genome [None]"

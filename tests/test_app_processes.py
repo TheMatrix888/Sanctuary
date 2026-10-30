@@ -5,7 +5,7 @@ from sanctuary.core.app import App
 from sanctuary.core.config import DisplayConfig
 from sanctuary.core.input_handler import Key
 from sanctuary.core.platform import Platform
-from sanctuary.core.state import Command, Quit, StartProcess, State, TerminateProcess
+from sanctuary.core.state import Batch, Command, Pop, Push, Quit, StartProcess, State, TerminateProcess
 from sanctuary.core.terminal import VirtualTerminal
 
 
@@ -122,3 +122,22 @@ def test_app_finally_block_cleans_up_processes_on_exit() -> None:
     # After main loop exits, finally block must have terminated the process
     assert proc.joined is True
     assert len(app.processes) == 0
+
+
+def test_app_batch_command_execution() -> None:
+    app = create_test_app()
+    proc = MockProcess("batch_proc")
+    dummy_state = State()
+
+    # Batch with StartProcess and Push
+    app._execute(Batch(StartProcess(proc), Push(dummy_state)))  # type: ignore
+    assert proc.is_started is True
+    assert "batch_proc" in app.processes
+    assert len(app.states) == 1
+    assert app.states[-1] is dummy_state
+
+    # Batch with TerminateProcess and Pop
+    app._execute(Batch(TerminateProcess("batch_proc"), Pop()))
+    assert proc.joined is True
+    assert "batch_proc" not in app.processes
+    assert len(app.states) == 0

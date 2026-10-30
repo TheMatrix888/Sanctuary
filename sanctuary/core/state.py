@@ -46,6 +46,16 @@ class ToggleMetrics(Command):
     """Toggles global runtime performance metrics and telemetry overlay."""
     pass
 
+
+@dataclass(slots=True, frozen=True)
+class Batch(Command):
+    """Executes a composite sequence of state transition and lifecycle commands atomically."""
+    commands: tuple[Command, ...]
+
+    def __init__(self, *commands: Command) -> None:
+        object.__setattr__(self, "commands", tuple(commands))
+
+
 @dataclass(slots=True, frozen=True)
 class StartProcess(Command):
     """Spawns an operating system background process and registers it in the application supervisor."""

@@ -3,11 +3,15 @@ Configuration constants and global presets for the tactical arena scene.
 Provides arena grid dimensions, zoom scaling configurations, and genetic simulation parameters.
 """
 
+from sanctuary.core.geometry import Point
 from .generators import ARENA_PRESETS
 
 # Spatial Grid Dimensions
 ARENA_WIDTH: int = 61
 ARENA_HEIGHT: int = 31
+
+# Primary Arena Viewport Origin (Unified SVoT Alignment)
+ARENA_ORIGIN: Point = Point(x=55, y=3)
 
 # Central Exclusion Zone (Anti-Camp Buffer)
 EXCLUSION_WIDTH: int = ARENA_WIDTH // 3

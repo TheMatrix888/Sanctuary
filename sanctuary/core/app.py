@@ -8,7 +8,18 @@ from sanctuary.core.config import DEFAULT_DISPLAY_CONFIG, DisplayConfig
 from sanctuary.core.input_handler import Key
 from sanctuary.core.platform import Platform
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Command, Push, Change, Pop, Quit, State, ToggleMetrics, StartProcess, TerminateProcess
+from sanctuary.core.state import (
+    Batch,
+    Change,
+    Command,
+    Pop,
+    Push,
+    Quit,
+    StartProcess,
+    State,
+    TerminateProcess,
+    ToggleMetrics,
+)
 from sanctuary.ui.telemetry import draw_telemetry_hud
 
 
@@ -73,6 +84,9 @@ class App:
 
     def _execute(self, command: Command) -> None:
         match command:
+            case Batch(commands):
+                for cmd in commands:
+                    self._execute(cmd)
             case Push(state):
                 self.push_state(state)
             case Change(state):
