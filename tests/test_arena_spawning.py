@@ -14,6 +14,67 @@ from sanctuary.scenes.arena.models import (
 from sanctuary.scenes.arena.worker import SimulationWorker
 
 
+from sanctuary.core.primitives import Color
+from sanctuary.scenes.arena.faction import (
+    ALL_FACTIONS,
+    BLUE,
+    BROWN,
+    FACTIONS_BY_ID,
+    FACTIONS_BY_NAME,
+    Faction,
+    GRAY,
+    LIME,
+    ORANGE,
+    RED,
+    TEAL,
+    YELLOW,
+)
+from sanctuary.scenes.arena.gladiator import create_gladiator
+
+
+def test_gladiator_faction_registry_and_textures() -> None:
+    # 8 canonical AoE1 factions
+    assert len(ALL_FACTIONS) == 8
+    assert [f.id for f in ALL_FACTIONS] == [1, 2, 3, 4, 5, 6, 7, 8]
+    assert [f.name for f in ALL_FACTIONS] == [
+        "Blue", "Red", "Yellow", "Brown", "Orange", "Lime", "Gray", "Teal"
+    ]
+
+    # Verify colors
+    assert BLUE.color == Color(0, 0, 255)
+    assert RED.color == Color(255, 0, 0)
+    assert YELLOW.color == Color(255, 255, 0)
+    assert BROWN.color == Color(116, 66, 49)
+    assert ORANGE.color == Color(227, 115, 6)
+    assert LIME.color == Color(0, 255, 0)
+    assert GRAY.color == Color(192, 192, 192)
+    assert TEAL.color == Color(0, 128, 128)
+
+    # Verify lookup mappings
+    assert FACTIONS_BY_ID[1] is BLUE
+    assert FACTIONS_BY_ID[6] is LIME
+    assert FACTIONS_BY_NAME["lime"] is LIME
+    assert FACTIONS_BY_NAME["green"] is LIME
+
+    # Verify create_gladiator with Faction object
+    lime_g = create_gladiator(0, 0, 10, 100, 100, faction=LIME)
+    assert lime_g.faction is LIME
+    assert lime_g.alive_texture == LIME.alive_texture
+    assert lime_g.dead_texture == LIME.dead_texture
+    assert lime_g.alive_texture.glyph_1x1.cells[0][0].fg_color == Color(0, 255, 0)
+
+    # Verify create_gladiator with string alias
+    green_g = create_gladiator(0, 0, 10, 100, 100, faction="green")
+    assert green_g.faction is LIME
+    assert green_g.alive_texture == LIME.alive_texture
+
+    yellow_g = create_gladiator(0, 0, 10, 100, 100, faction="yellow")
+    assert yellow_g.faction is YELLOW
+    assert yellow_g.alive_texture == YELLOW.alive_texture
+    assert yellow_g.dead_texture == YELLOW.dead_texture
+    assert yellow_g.alive_texture.glyph_1x1.cells[0][0].fg_color == Color(255, 255, 0)
+
+
 def test_gladiator_spawning_avoids_center_exclusion() -> None:
     playback_queue = Queue()
     snapshot_queue = Queue()

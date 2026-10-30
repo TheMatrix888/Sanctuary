@@ -30,6 +30,17 @@ class Color:
         yield self.g
         yield self.b
 
+    @classmethod
+    def from_hex(cls, hex_str: str) -> "Color":
+        """Parses a 6-character hex RGB color string (e.g. '#0000ff' or '0000ff')."""
+        cleaned = hex_str.lstrip("#")
+        assert len(cleaned) == 6, f"Hex color must be 6 hex digits, got: {hex_str!r}"
+        return cls(
+            r=int(cleaned[0:2], 16),
+            g=int(cleaned[2:4], 16),
+            b=int(cleaned[4:6], 16),
+        )
+
     @property
     def inverted(self) -> "Color":
         """Returns the complementary inverse 24-bit RGB color."""
@@ -130,7 +141,7 @@ class Surface:
         fg_color: Color | None = None,
         bg_color: Color | None = None,
     ) -> None:
-        """Applies uniform foreground and/or background colors across all cells."""
+        """Applies uniform foreground and/or background colors across all cells in-place."""
         for row in self.cells:
             for x in range(self.size.columns):
                 cell = row[x]
@@ -139,6 +150,22 @@ class Surface:
                     fg_color if fg_color is not None else cell.fg_color,
                     bg_color if bg_color is not None else cell.bg_color,
                 )
+
+    def with_color(
+        self,
+        fg_color: Color | None = None,
+        bg_color: Color | None = None,
+    ) -> Self:
+        """Returns a new Surface with the specified colors applied across all cells."""
+        new_surface = self.empty(self.size)
+        for y, row in enumerate(self.cells):
+            for x, cell in enumerate(row):
+                new_surface.cells[y][x] = Cell(
+                    cell.char,
+                    fg_color if fg_color is not None else cell.fg_color,
+                    bg_color if bg_color is not None else cell.bg_color,
+                )
+        return new_surface
 
     def flip_x(self, mirror_glyphs: bool = True) -> Self:
         """

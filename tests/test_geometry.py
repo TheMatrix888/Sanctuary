@@ -3,6 +3,18 @@ Unit tests for geometric primitives, Point, Size, and Rect in sanctuary/core/geo
 """
 import pytest
 from sanctuary.core.geometry import Point, Size, Rect
+from sanctuary.core.primitives import Color
+
+
+class TestColor:
+    def test_from_hex(self) -> None:
+        assert Color.from_hex("#0000ff") == Color(0, 0, 255)
+        assert Color.from_hex("ff0000") == Color(255, 0, 0)
+        assert Color.from_hex("#744231") == Color(116, 66, 49)
+
+    def test_inverted(self) -> None:
+        assert Color(0, 0, 0).inverted == Color(255, 255, 255)
+        assert Color(255, 0, 128).inverted == Color(0, 255, 127)
 
 
 class TestRect:

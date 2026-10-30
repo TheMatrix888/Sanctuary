@@ -28,6 +28,15 @@ class Texture:
             return self.glyph_2x1
         return self.glyph_1x1
 
+    def with_color(self, fg_color: Color | None = None, bg_color: Color | None = None) -> "Texture":
+        """Returns a new Texture with the specified colors applied across all footprint Surfaces."""
+        return Texture(
+            glyph_1x1=self.glyph_1x1.with_color(fg_color, bg_color),
+            glyph_2x1=self.glyph_2x1.with_color(fg_color, bg_color),
+            glyph_2x2=self.glyph_2x2.with_color(fg_color, bg_color),
+            glyph_4x2=self.glyph_4x2.with_color(fg_color, bg_color),
+        )
+
 
 # =============================================================================
 # ENVIRONMENT & TERRAIN TEXTURES
@@ -65,40 +74,22 @@ CHASM_TEXTURE = Texture(
 # ACTOR & GLADIATOR TEXTURES
 # =============================================================================
 
-PLAYER_TEXTURE = Texture(
-    glyph_1x1=Surface("☺", fg_color=Color(128, 0, 255)),
-    glyph_2x1=Surface("☺ ", fg_color=Color(128, 0, 255)),
-    glyph_2x2=Surface("☺ \n/\\", fg_color=Color(128, 0, 255)),
-    glyph_4x2=Surface("o_o]\n/||\\", fg_color=Color(128, 0, 255)),
+# Base gladiator template assets (neutral / uncolored)
+GLADIATOR_TEXTURE = Texture(
+    glyph_1x1=Surface("☺"),
+    glyph_2x1=Surface("☺ "),
+    glyph_2x2=Surface("☺ \n/\\"),
+    glyph_4x2=Surface("o_o]\n/||\\"),
 )
 
-RED_GLADIATOR_TEXTURE = Texture(
-    glyph_1x1=Surface("☺", fg_color=Color(255, 0, 0)),
-    glyph_2x1=Surface("☺ ", fg_color=Color(255, 0, 0)),
-    glyph_2x2=Surface("☺ \n/\\", fg_color=Color(255, 0, 0)),
-    glyph_4x2=Surface("o_o]\n/||\\", fg_color=Color(255, 0, 0)),
+DEAD_GLADIATOR_TEXTURE = Texture(
+    glyph_1x1=Surface("%"),
+    glyph_2x1=Surface("% "),
+    glyph_2x2=Surface("% \n/\\"),
+    glyph_4x2=Surface("x_x]\n/||\\"),
 )
 
-DEAD_RED_GLADIATOR_TEXTURE = Texture(
-    glyph_1x1=Surface("%", fg_color=Color(255, 0, 0)),
-    glyph_2x1=Surface("% ", fg_color=Color(255, 0, 0)),
-    glyph_2x2=Surface("% \n/\\", fg_color=Color(255, 0, 0)),
-    glyph_4x2=Surface("x_x]\n/||\\", fg_color=Color(255, 0, 0)),
-)
-
-BLUE_GLADIATOR_TEXTURE = Texture(
-    glyph_1x1=Surface("☺", fg_color=Color(0, 0, 255)),
-    glyph_2x1=Surface("☺ ", fg_color=Color(0, 0, 255)),
-    glyph_2x2=Surface("☺ \n/\\", fg_color=Color(0, 0, 255)),
-    glyph_4x2=Surface("o_o]\n/||\\", fg_color=Color(0, 0, 255)),
-)
-
-DEAD_BLUE_GLADIATOR_TEXTURE = Texture(
-    glyph_1x1=Surface("%", fg_color=Color(0, 0, 255)),
-    glyph_2x1=Surface("% ", fg_color=Color(0, 0, 255)),
-    glyph_2x2=Surface("% \n/\\", fg_color=Color(0, 0, 255)),
-    glyph_4x2=Surface("x_x]\n/||\\", fg_color=Color(0, 0, 255)),
-)
+PLAYER_TEXTURE = GLADIATOR_TEXTURE.with_color(Color(128, 0, 255))
 
 """
 ◑  ◐

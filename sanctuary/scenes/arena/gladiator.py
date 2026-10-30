@@ -7,13 +7,8 @@ from random import randint
 
 from .config import ARENA_HEIGHT, ARENA_WIDTH, GENOME_SIZE
 from .entities import Entity
-from .textures import (
-    BLUE_GLADIATOR_TEXTURE,
-    DEAD_BLUE_GLADIATOR_TEXTURE,
-    DEAD_RED_GLADIATOR_TEXTURE,
-    RED_GLADIATOR_TEXTURE,
-    Texture,
-)
+from .faction import FACTIONS_BY_NAME, RED, Faction
+from .textures import Texture
 
 
 @dataclass(slots=True)
@@ -24,7 +19,7 @@ class Gladiator(Entity):
     """
     alive_texture: Texture
     dead_texture: Texture
-    faction: str
+    faction: Faction
     genome: list[int]
     pc: int
     score: int
@@ -65,15 +60,14 @@ def create_gladiator(
     view_distance: int,
     hp: int,
     max_hp: int,
-    faction: str,
+    faction: Faction | str,
     genome: list[int] | None = None,
 ) -> Gladiator:
     """
     Factory creating an autonomous gladiator entity with genome and faction textures.
     Instantiates fields in the exact schema declaration order.
     """
-    texture = RED_GLADIATOR_TEXTURE if faction == "red" else BLUE_GLADIATOR_TEXTURE
-    dead_texture = DEAD_RED_GLADIATOR_TEXTURE if faction == "red" else DEAD_BLUE_GLADIATOR_TEXTURE
+    actual_faction = faction if isinstance(faction, Faction) else FACTIONS_BY_NAME.get(faction.lower(), RED)
     actual_genome = genome if genome is not None else [randint(0, GENOME_SIZE - 1) for _ in range(GENOME_SIZE)]
     center_x = ARENA_WIDTH // 2
     center_y = ARENA_HEIGHT // 2
@@ -85,10 +79,10 @@ def create_gladiator(
         view_distance=view_distance,
         hp=hp,
         max_hp=max_hp,
-        texture=texture,
-        alive_texture=texture,
-        dead_texture=dead_texture,
-        faction=faction,
+        texture=actual_faction.alive_texture,
+        alive_texture=actual_faction.alive_texture,
+        dead_texture=actual_faction.dead_texture,
+        faction=actual_faction,
         genome=actual_genome,
         pc=0,
         score=0,

@@ -21,6 +21,7 @@ from .config import (
     MAX_VM_ACTIONS_PER_TICK,
     SURVIVAL_BONUS,
 )
+from .faction import BLUE, RED
 from .generators import ARENA_PRESETS
 from .gladiator import Gladiator, create_gladiator
 from .tile_map import TileMap
@@ -100,7 +101,7 @@ class SimulationWorker:
                 view_distance=10,
                 hp=100,
                 max_hp=100,
-                faction="red",
+                faction=RED,
                 genome=red_seeds[i % len(red_seeds)].copy() if red_seeds else None,
             )
             for i in range(self.config.entities_per_team)
@@ -112,7 +113,7 @@ class SimulationWorker:
                 view_distance=10,
                 hp=100,
                 max_hp=100,
-                faction="blue",
+                faction=BLUE,
                 genome=blue_seeds[i % len(blue_seeds)].copy() if blue_seeds else None,
             )
             for i in range(self.config.entities_per_team)
