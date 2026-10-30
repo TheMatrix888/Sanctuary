@@ -5,6 +5,7 @@ from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import Key
 from sanctuary.core.screen import Screen
 from sanctuary.core.terminal import VirtualTerminal
+from sanctuary.core.state import Pop, Quit
 from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button, Dropdown, FormItem
 
@@ -127,3 +128,21 @@ def test_base_form_item_defaults() -> None:
     terminal = VirtualTerminal(columns=80, rows=25)
     screen = Screen(terminal)
     assert dummy.draw_expanded(screen, 0, 5, 20) == 5
+
+
+def test_button_commands() -> None:
+    # Direct command
+    btn_cmd = Button("Back", Pop())
+    assert btn_cmd.on_activate() == Pop()
+
+    # Callable returning tuple of commands
+    btn_multi = Button("Batch", lambda: (Pop(), Quit()))
+    assert btn_multi.on_activate() == (Pop(), Quit())
+
+    # Callable returning None
+    btn_none = Button("Noop", lambda: None)
+    assert btn_none.on_activate() is None
+
+    # Raw None
+    btn_raw_none = Button("Empty")
+    assert btn_raw_none.on_activate() is None

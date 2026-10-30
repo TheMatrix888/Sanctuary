@@ -18,8 +18,8 @@ class Command:
     pass
 
 
-# A CommandResult can be a single Command, a sequence/tuple of commands, or None.
-CommandResult = Command | Sequence[Command] | None
+# Commands represents a single Command, a sequence/tuple of commands, or None.
+Commands = Command | Sequence[Command] | None
 
 
 @dataclass(slots=True, frozen=True)
@@ -69,7 +69,7 @@ class State:
     Abstract base lifecycle contract for Sanctuary states and scenes.
     """
 
-    def handle_input(self, input_handler: InputHandler) -> CommandResult:
+    def handle_input(self, input_handler: InputHandler) -> Commands:
         """Processes input events and optionally dispatches lifecycle commands."""
         if input_handler.just_pressed(Key.F3):
             return ToggleMetrics()

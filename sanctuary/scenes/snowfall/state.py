@@ -8,7 +8,7 @@ from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import State, Command, Pop, ToggleMetrics
+from sanctuary.core.state import Commands, Pop, State, ToggleMetrics
 from sanctuary.scenes.snowfall.config import (
     SnowfallConfig,
     SnowflakeType,
@@ -90,7 +90,7 @@ class SnowfallState(State):
             color=chosen_type.color,
         )
 
-    def handle_input(self, input_handler: InputHandler) -> Command | None:
+    def handle_input(self, input_handler: InputHandler) -> Commands:
         if input_handler.just_pressed(Key.ESC):
             return Pop()
 

@@ -14,7 +14,7 @@ from sanctuary.core.formatting import format_compact
 from sanctuary.core.geometry import Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import CommandResult, Pop, TerminateProcess
+from sanctuary.core.state import Commands, Pop, TerminateProcess
 from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button, ChoiceKnob, Header, Knob, Spacer
 
@@ -127,7 +127,7 @@ class ArenaRunningState(FormState):
             mode=Mode(self.mode_knob.value),
         )
 
-    def _on_stop(self) -> CommandResult:
+    def _on_stop(self) -> Commands:
         """Stops background evolution worker, captures trailing snapshot, and returns to setup state."""
         self.stop_event.set()
         while not self.snapshot_queue.empty():

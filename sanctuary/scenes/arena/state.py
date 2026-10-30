@@ -6,7 +6,7 @@ from sanctuary.core.geometry import Point, Size, field_of_view
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Command, Pop, State, ToggleMetrics
+from sanctuary.core.state import Commands, Pop, State, ToggleMetrics
 from .config import ARENA_HEIGHT, ARENA_WIDTH, ZOOM_SCALES
 from .entities import Entity, create_player
 from .generators import ARENA_PRESETS
@@ -64,7 +64,7 @@ class Arena(State):
             self.tilemap.is_opaque,
         )
 
-    def handle_input(self, input_handler: InputHandler) -> Command | None:
+    def handle_input(self, input_handler: InputHandler) -> Commands:
         # Movement controls
         if input_handler.is_repeated(Key.RIGHT, Key.D):
             self.player_dx += 1

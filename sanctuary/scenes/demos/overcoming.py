@@ -12,7 +12,7 @@ from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Cell, Color, Surface
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Command, Pop, State, ToggleMetrics
+from sanctuary.core.state import Commands, Pop, State, ToggleMetrics
 from sanctuary.core.terminal import Terminal
 
 OVERCOMING_BG = Color(14, 16, 22)
@@ -109,7 +109,7 @@ class OvercomingState(State):
         self.corner_bl = Surface(BL_CORNER_ART, corner_fg, corner_bg)
         self.corner_br = Surface(BR_CORNER_ART, corner_fg, corner_bg)
 
-    def handle_input(self, input_handler: InputHandler) -> Command | None:
+    def handle_input(self, input_handler: InputHandler) -> Commands:
         if input_handler.just_pressed(Key.ESC):
             self._restore_geometry()
             return Pop()

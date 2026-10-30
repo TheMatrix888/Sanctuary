@@ -9,7 +9,7 @@ from typing import Callable
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color, DEFAULT_BG
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Command
+from sanctuary.core.state import Commands
 
 
 class FormItem(ABC):
@@ -22,7 +22,7 @@ class FormItem(ABC):
         """Indicates whether this widget intercepts form navigation (modal focus)."""
         return False
 
-    def handle_input(self, input_handler: InputHandler) -> Command | None:
+    def handle_input(self, input_handler: InputHandler) -> Commands:
         """Handles exclusive keyboard input when capturing input. Returns a Command if triggered."""
         return None
 
@@ -41,7 +41,7 @@ class FormItem(ABC):
         pass
 
     @abstractmethod
-    def on_activate(self) -> Command | None:
+    def on_activate(self) -> Commands:
         """Handles primary execution (Enter key)."""
         pass
 
@@ -90,7 +90,7 @@ class Knob(FormItem):
         new_value = round(self.value + step, 6)
         self.value = max(self.min_value, min(new_value, self.max_value))
 
-    def on_activate(self) -> Command | None:
+    def on_activate(self) -> Commands:
         return None
 
     def on_reset(self) -> None:
@@ -156,7 +156,7 @@ class ChoiceKnob(FormItem):
         if target_value in self.values:
             self.index = self.values.index(target_value)
 
-    def on_activate(self) -> Command | None:
+    def on_activate(self) -> Commands:
         self.on_adjust(1)
         return None
 
@@ -193,7 +193,7 @@ class Toggle(FormItem):
         if delta != 0:
             self.is_enabled = not self.is_enabled
 
-    def on_activate(self) -> Command | None:
+    def on_activate(self) -> Commands:
         self.is_enabled = not self.is_enabled
         return None
 
@@ -209,7 +209,7 @@ class Toggle(FormItem):
 class Button(FormItem):
     """Action button triggering a State Stack Command or callable action on Enter."""
     label: str
-    action: Command | Callable[[], Command | None] | None = None
+    action: Commands | Callable[[], Commands] = None
 
     def render_value(self) -> str:
         return ""
@@ -217,7 +217,7 @@ class Button(FormItem):
     def on_adjust(self, delta: int, multiplier: float = 1.0) -> None:
         pass
 
-    def on_activate(self) -> Command | None:
+    def on_activate(self) -> Commands:
         if callable(self.action):
             return self.action()
         return self.action
@@ -242,7 +242,7 @@ class Header(FormItem):
     def on_adjust(self, delta: int, multiplier: float = 1.0) -> None:
         pass
 
-    def on_activate(self) -> Command | None:
+    def on_activate(self) -> Commands:
         return None
 
     def on_reset(self) -> None:
@@ -264,7 +264,7 @@ class Spacer(FormItem):
     def on_adjust(self, delta: int, multiplier: float = 1.0) -> None:
         pass
 
-    def on_activate(self) -> Command | None:
+    def on_activate(self) -> Commands:
         return None
 
     def on_reset(self) -> None:
@@ -286,7 +286,7 @@ class Dropdown(FormItem):
     options: list[str]
     selected_index: int = 0
     is_open: bool = False
-    on_select: Callable[[str], Command | None] | None = None
+    on_select: Callable[[str], Commands] | None = None
     max_visible_options: int = 6
 
     def __post_init__(self) -> None:
@@ -314,7 +314,7 @@ class Dropdown(FormItem):
         if not self.is_open and self.options:
             self.selected_index = (self.selected_index + delta) % len(self.options)
 
-    def on_activate(self) -> Command | None:
+    def on_activate(self) -> Commands:
         if not self.options:
             return None
         self.is_open = not self.is_open
@@ -329,7 +329,7 @@ class Dropdown(FormItem):
             return "[↑/↓] Select  [Enter] Confirm  [Esc] Close"
         return "[Enter] Open list  [←/→] Quick cycle  [R] Reset  [Esc] Back"
 
-    def handle_input(self, input_handler: InputHandler) -> Command | None:
+    def handle_input(self, input_handler: InputHandler) -> Commands:
         if not self.is_open or not self.options:
             self.is_open = False
             return None

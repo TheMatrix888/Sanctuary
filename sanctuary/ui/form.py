@@ -8,7 +8,7 @@ from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color, DEFAULT_BG
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Command, Pop, State, ToggleMetrics
+from sanctuary.core.state import Commands, Pop, State, ToggleMetrics
 from sanctuary.ui.widgets import FormItem
 
 
@@ -20,13 +20,13 @@ class FormState(State):
     title: str
     items: list[FormItem]
     index: int
-    on_cancel: Command | None
+    on_cancel: Commands
 
     def __init__(
         self,
         title: str,
         items: Sequence[FormItem],
-        on_cancel: Command | None = Pop(),
+        on_cancel: Commands = Pop(),
     ) -> None:
         self.title = title
         self.items = list(items)
@@ -60,7 +60,7 @@ class FormState(State):
             new_index = (new_index + step) % len(self.items)
         self.index = new_index
 
-    def handle_input(self, input_handler: InputHandler) -> Command | None:
+    def handle_input(self, input_handler: InputHandler) -> Commands:
         if not self.items:
             if input_handler.just_pressed(Key.ESC):
                 return self.on_cancel

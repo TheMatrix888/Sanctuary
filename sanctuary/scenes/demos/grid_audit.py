@@ -9,7 +9,7 @@ from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Cell, Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Command, Pop, State, ToggleMetrics
+from sanctuary.core.state import Commands, Pop, State, ToggleMetrics
 
 
 class AuditPattern(IntEnum):
@@ -30,7 +30,7 @@ class GridAuditState(State):
         self.pattern = pattern
         self.show_overlay = True
 
-    def handle_input(self, input_handler: InputHandler) -> Command | None:
+    def handle_input(self, input_handler: InputHandler) -> Commands:
         if input_handler.just_pressed(Key.ESC):
             return Pop()
         if input_handler.just_pressed(Key.TAB):

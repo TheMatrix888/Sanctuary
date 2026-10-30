@@ -5,7 +5,7 @@ from sanctuary.core.app import App
 from sanctuary.core.config import DisplayConfig
 from sanctuary.core.input_handler import Key
 from sanctuary.core.platform import Platform
-from sanctuary.core.state import Command, Pop, Push, Quit, StartProcess, State, TerminateProcess
+from sanctuary.core.state import Command, Commands, Pop, Push, Quit, StartProcess, State, TerminateProcess
 from sanctuary.core.terminal import VirtualTerminal
 
 
@@ -113,7 +113,7 @@ def test_app_finally_block_cleans_up_processes_on_exit() -> None:
     app._execute(StartProcess(proc))  # type: ignore
 
     class QuittingState(State):
-        def handle_input(self, input_handler) -> Command | None:
+        def handle_input(self, input_handler) -> Commands:
             return Quit()
 
     app.push_state(QuittingState())

@@ -10,7 +10,7 @@ from sanctuary.core.formatting import format_compact
 from sanctuary.core.geometry import Rect, Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import CommandResult, Pop, Push, StartProcess
+from sanctuary.core.state import Commands, Pop, Push, StartProcess
 from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button, ChoiceKnob, Dropdown, Header, Knob, Spacer, Toggle
 
@@ -46,6 +46,7 @@ class ArenaSetupState(FormState):
     Inspector and tournament configurator state for the evolutionary arena simulation.
     Allows configuring gladiator entity counts, mutation rates, procedural maps, and exclusion buffers.
     """
+    # ui
     start_button: Button
     setup_header: Header
     tournament_header: Header
@@ -61,6 +62,7 @@ class ArenaSetupState(FormState):
     load_dropdown: Dropdown
     save_button: Button
     back_button: Button
+    # TODO divide into categories using comments (in all classes)
     loaded_genomes: dict[str, list[list[int]]] | None
     loaded_generation: int
     status_message: str
@@ -172,7 +174,7 @@ class ArenaSetupState(FormState):
         self.save_button = Button("Save latest snapshot genome [None]", action=self._on_save_genome)
         self.back_button = Button("Back", action=Pop())
 
-    def _on_start_button(self) -> CommandResult:
+    def _on_start_button(self) -> Commands:
         """Pushes active running state or initializes fresh tournament worker."""
         if self.running_state is not None:
             return Push(self.running_state)
