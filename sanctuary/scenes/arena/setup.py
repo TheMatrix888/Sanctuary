@@ -109,10 +109,6 @@ class ArenaSetupState(FormState):
 
         self.update_map_preview()
 
-    @property
-    def is_running(self) -> bool:
-        return self.running_state is not None and self.running_state.is_running
-
     def _build_widgets(self) -> None:
         """Instantiates declarative form widgets, knobs, and section headers."""
         self.start_button = Button("Start simulation", action=self._on_start_button)
@@ -178,7 +174,7 @@ class ArenaSetupState(FormState):
 
     def _on_start_button(self) -> CommandResult:
         """Pushes active running state or initializes fresh tournament worker."""
-        if self.running_state is not None and self.running_state.is_running:
+        if self.running_state is not None:
             return Push(self.running_state)
 
         config = self.gather_world_config()
@@ -193,7 +189,6 @@ class ArenaSetupState(FormState):
         )
         self.running_state = running
         proc = running.create_worker_process()
-        running.is_running = True
         self.start_button.label = "View active simulation"
         return StartProcess(proc), Push(running)
 
@@ -287,7 +282,7 @@ class ArenaSetupState(FormState):
         if self.current_map != self.map_knob.value:
             self.update_map_preview()
 
-        if self.is_running:
+        if self.running_state is not None:
             self.start_button.label = "View active simulation"
         else:
             self.start_button.label = "Start simulation"
@@ -301,7 +296,7 @@ class ArenaSetupState(FormState):
         super().draw(screen)
 
         status_y = screen.size.rows - 2
-        if self.is_running:
+        if self.running_state is not None:
             status_badge = "[RUNNING IN BACKGROUND]"
             status_fg = Color(80, 255, 120)
         else:

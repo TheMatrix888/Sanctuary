@@ -44,7 +44,6 @@ class ArenaRunningState(FormState):
     setup_state: ArenaSetupState
     world_config: WorldConfig
     saves_dir: Path
-    is_running: bool
     snapshot_queue: Queue
     playback_queue: Queue
     stop_event: EventType
@@ -69,7 +68,6 @@ class ArenaRunningState(FormState):
         self.setup_state = setup_state
         self.world_config = world_config
         self.saves_dir = saves_dir
-        self.is_running = False
 
         self.snapshot_queue = Queue(maxsize=2)
         self.playback_queue = Queue(maxsize=10)
@@ -138,7 +136,7 @@ class ArenaRunningState(FormState):
             except queue.Empty:
                 break
         self.gps_tracker.reset()
-        self.is_running = False
+        self.setup_state.running_state = None
 
         self.setup_state.last_snapshot = self.last_snapshot
         self.setup_state.start_button.label = "Start simulation"
@@ -184,17 +182,16 @@ class ArenaRunningState(FormState):
             self.gps_tracker.update(self.last_snapshot.generation)
             self.setup_state.last_snapshot = self.last_snapshot
 
-        if self.is_running:
-            current_fps = self.fps_knob.value
-            current_mode = self.mode_knob.value
-            if current_fps != self._last_fps or current_mode != self._last_mode:
-                self._last_fps = current_fps
-                self._last_mode = current_mode
-                playback_settings = self.gather_playback_settings()
-                try:
-                    self.playback_queue.put_nowait(playback_settings)
-                except queue.Full:
-                    pass
+        current_fps = self.fps_knob.value
+        current_mode = self.mode_knob.value
+        if current_fps != self._last_fps or current_mode != self._last_mode:
+            self._last_fps = current_fps
+            self._last_mode = current_mode
+            playback_settings = self.gather_playback_settings()
+            try:
+                self.playback_queue.put_nowait(playback_settings)
+            except queue.Full:
+                pass
 
     def draw(self, screen: Screen) -> None:
         super().draw(screen)

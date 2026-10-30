@@ -84,7 +84,7 @@ def test_stop_simulation_preserves_last_snapshot() -> None:
         world_config=setup.gather_world_config(),
         saves_dir=setup.saves_dir,
     )
-    running.is_running = True
+    setup.running_state = running
 
     # Put snapshot into queue
     red_g1 = create_gladiator(0, 0, 10, 100, 100, "red", genome=[99] * GENOME_SIZE)
@@ -100,7 +100,7 @@ def test_stop_simulation_preserves_last_snapshot() -> None:
 
     # Stop simulation
     running._on_stop()
-    assert running.is_running is False
+    assert setup.running_state is None
     assert running.last_snapshot is not None
     assert setup.last_snapshot is not None
     assert setup.last_snapshot.generation == 42
