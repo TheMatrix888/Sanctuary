@@ -55,9 +55,6 @@ class Arena(State):
 
         self.update_fov()
 
-    def on_enter(self) -> None:
-        self.reset()
-
     def update_fov(self) -> None:
         """Recalculates player line-of-sight visibility cache."""
         self.visible_cells = field_of_view(

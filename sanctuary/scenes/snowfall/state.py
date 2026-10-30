@@ -71,10 +71,6 @@ class SnowfallState(State):
         self.time_seconds = 0.0
         self.is_paused = False
 
-    def on_enter(self) -> None:
-        """Lifecycle hook: resets and recreates all particles on entering the scene."""
-        self.reset()
-
     def _spawn_flake(self, screen_size: Size, spawn_anywhere: bool) -> Snowflake:
         weights = [flake_type.chance_weight for flake_type in self.config.flake_types]
         chosen_type: SnowflakeType = random.choices(self.config.flake_types, weights=weights, k=1)[0]

@@ -40,9 +40,6 @@ class RainbowTextState(State):
         self.time = 0.0
         self.wave_angle = 270.0
 
-    def on_enter(self) -> None:
-        self.reset()
-
     def handle_input(self, input_handler: InputHandler) -> Command | None:
         if input_handler.just_pressed(Key.ESC):
             return Pop()

@@ -32,3 +32,18 @@ def test_main_menu_demos_hierarchy() -> None:
     menu = create_main_menu()
     assert menu.title == "Sanctuary Main Menu"
     assert len(menu.items) == 4
+
+
+def test_transient_vs_retained_states() -> None:
+    menu = create_main_menu()
+    # Arena is transient (callable action returning fresh instance)
+    arena_btn = menu.items[0]
+    assert callable(arena_btn.action)
+    cmd1 = arena_btn.action()
+    cmd2 = arena_btn.action()
+    assert cmd1.state is not cmd2.state
+
+    # Arena simulation is retained (direct Push command holding singleton instance)
+    sim_btn = menu.items[1]
+    assert not callable(sim_btn.action)
+    assert sim_btn.action.state is not None

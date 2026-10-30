@@ -25,13 +25,13 @@ def create_main_menu() -> FormState:
         return FormState(
             title="Demos menu",
             items=[
-                Button("Rainbow Text Wave", Push(RainbowTextState())),
+                Button("Rainbow Text Wave", lambda: Push(RainbowTextState())),
                 Button("Snowfall (5 Presets)", Push(SnowfallState(CALM_DRIFT_CONFIG))),
-                Button("Bouncing Hammer", Push(BouncingHammerState())),
-                Button("Bouncing Box", Push(BouncingBoxState())),
-                Button("Grid Audit (# Fill)", Push(GridAuditState())),
+                Button("Bouncing Hammer", lambda: Push(BouncingHammerState())),
+                Button("Bouncing Box", lambda: Push(BouncingBoxState())),
+                Button("Grid Audit (# Fill)", lambda: Push(GridAuditState())),
                 Button("Overcoming (Sine Flex)", lambda: Push(OvercomingState())),
-                Button("Orbital Window", lambda: Push(OrbitalWindowState())),
+                Button("Orbital Window", Push(OrbitalWindowState())),
                 Button("Back", Pop()),
             ],
             on_cancel=Pop(),
@@ -40,7 +40,7 @@ def create_main_menu() -> FormState:
     return FormState(
         title="Sanctuary Main Menu",
         items=[
-            Button("Arena", Push(Arena())),
+            Button("Arena", lambda: Push(Arena())),
             Button("Arena simulation", Push(ArenaSimulation())),
             Button("Demos", Push(demos_menu())),
             Button("Quit", Quit()),

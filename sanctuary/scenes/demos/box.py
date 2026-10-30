@@ -52,17 +52,14 @@ class BouncingBoxState(State):
         self.is_inverted = False
         self._initialized = False
 
-    def on_enter(self) -> None:
-        self.reset()
-
     def handle_input(self, input_handler: InputHandler) -> Command | None:
         if input_handler.just_pressed(Key.ESC):
             return Pop()
         if input_handler.just_pressed(Key.SPACE):
             self.is_inverted = not self.is_inverted
-        if input_handler.is_repeated(Key.LEFT) or input_handler.is_repeated(Key.A):
+        if input_handler.is_repeated(Key.LEFT, Key.A):
             self.speed_multiplier = max(0.25, round(self.speed_multiplier - 0.25, 2))
-        if input_handler.is_repeated(Key.RIGHT) or input_handler.is_repeated(Key.D):
+        if input_handler.is_repeated(Key.RIGHT, Key.D):
             self.speed_multiplier = min(2.0, round(self.speed_multiplier + 0.25, 2))
         if input_handler.just_pressed(Key.F3):
             return ToggleMetrics()
