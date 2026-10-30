@@ -5,6 +5,7 @@ from sanctuary.core.config import DisplayConfig
 from sanctuary.core.geometry import Rect, Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
+from sanctuary.core.state import StartProcess, TerminateProcess
 from sanctuary.core.terminal import VirtualTerminal
 from sanctuary.scenes.arena.config import ARENA_HEIGHT, ARENA_WIDTH
 from sanctuary.scenes.arena.generators import generate_tectonic_chasm
@@ -201,7 +202,8 @@ def test_simulation_generation_resets_on_subsequent_runs(monkeypatch) -> None:
     sim.last_snapshot = "stale_snapshot"  # type: ignore
 
     # 2. Start simulation: should use loaded values, then consume them and clear last_snapshot
-    sim._toggle_simulation()
+    cmd1 = sim._toggle_simulation()
+    assert isinstance(cmd1, StartProcess)
     assert sim.is_running is True
     assert len(started_configs) == 1
     assert started_configs[0].initial_generation == 134942
@@ -211,11 +213,13 @@ def test_simulation_generation_resets_on_subsequent_runs(monkeypatch) -> None:
     assert sim.last_snapshot is None
 
     # 3. Stop simulation
-    sim._toggle_simulation()
+    cmd2 = sim._toggle_simulation()
+    assert isinstance(cmd2, TerminateProcess)
     assert sim.is_running is False
 
     # 4. Start simulation again without loading save: must reset to generation 1 and random genomes
-    sim._toggle_simulation()
+    cmd3 = sim._toggle_simulation()
+    assert isinstance(cmd3, StartProcess)
     assert sim.is_running is True
     assert len(started_configs) == 2
     assert started_configs[1].initial_generation == 1

@@ -2,11 +2,13 @@
 Application lifecycle manager for Sanctuary.
 Drives the central state stack, input polling, physics update, and differential rendering loop.
 """
+from multiprocessing import Process
+
 from sanctuary.core.config import DEFAULT_DISPLAY_CONFIG, DisplayConfig
 from sanctuary.core.input_handler import Key
 from sanctuary.core.platform import Platform
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Command, Push, Change, Pop, Quit, State, ToggleMetrics
+from sanctuary.core.state import Command, Push, Change, Pop, Quit, State, ToggleMetrics, StartProcess, TerminateProcess
 from sanctuary.ui.telemetry import draw_telemetry_hud
 
 
@@ -18,12 +20,14 @@ class App:
         self.input_handler = platform.input_handler
         self.states: list[State] = []
         self.metrics_toggle = False
+        self.processes: set[Process] = set()
 
     def run(self) -> None:
         try:
             while self.states:
                 self.update()
         finally:
+            self.quit()
             self.clock.close()
             self.screen.terminal.close()
 
@@ -59,18 +63,32 @@ class App:
 
         self.dt = self.clock.tick()
 
+    @staticmethod
+    def _stop_process(process: Process) -> None:
+        if process.is_alive():
+            process.join(timeout=0.2)
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=0.5)
+
     def _execute(self, command: Command) -> None:
         match command:
-            case Push(next_state):
-                self.push_state(next_state)
-            case Change(next_state):
-                self.change_state(next_state)
+            case Push(state):
+                self.push_state(state)
+            case Change(state):
+                self.change_state(state)
             case Pop():
                 self.pop_state()
             case Quit():
                 self.quit()
             case ToggleMetrics():
                 self.toggle_metrics()
+            case StartProcess(process):
+                self.processes.add(process)
+                process.start()
+            case TerminateProcess(process):
+                self._stop_process(process)
+                self.processes.discard(process)
 
     def push_state(self, state: State) -> None:
         self.states.append(state)
@@ -88,6 +106,10 @@ class App:
     def quit(self) -> None:
         while len(self.states) > 0:
             self.pop_state()
+        for process in list(self.processes):
+            self._stop_process(process)
+        self.processes.clear()
+
 
     def toggle_metrics(self) -> None:
         self.metrics_toggle = not self.metrics_toggle

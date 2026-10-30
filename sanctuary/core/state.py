@@ -5,6 +5,7 @@ Provides the base State lifecycle contract and modal transition commands.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from multiprocessing import Process
 
 from sanctuary.core.geometry import Size
 from sanctuary.core.input_handler import InputHandler, Key
@@ -44,6 +45,17 @@ class Quit(Command):
 class ToggleMetrics(Command):
     """Toggles global runtime performance metrics and telemetry overlay."""
     pass
+
+@dataclass(slots=True, frozen=True)
+class StartProcess(Command):
+    """Spawns an operating system background process and registers it in the application supervisor."""
+    process: Process
+
+
+@dataclass(slots=True, frozen=True)
+class TerminateProcess(Command):
+    """Terminates an operating system background process and unregisters it from application tracking."""
+    process: Process
 
 
 class State:

@@ -11,7 +11,7 @@ from sanctuary.core.formatting import format_compact
 from sanctuary.core.geometry import Rect, Size
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
-from sanctuary.core.state import Command, Pop
+from sanctuary.core.state import Command, Pop, StartProcess, TerminateProcess
 from sanctuary.ui.form import FormState
 from sanctuary.ui.widgets import Button, ChoiceKnob, Dropdown, Header, Knob, Spacer, Toggle
 
@@ -328,13 +328,13 @@ class ArenaSimulation(FormState):
                     self.stop_event,
                 ),
             )
-            self.process.start()
+            self.is_running = True
+            self.sim_button.label = "Stop simulation"
+            self._update_active_items()
+            return StartProcess(self.process)
         else:
             self.stop_event.set()
-            if self.process is not None:
-                self.process.join(timeout=1.0)
-                if self.process.is_alive():
-                    self.process.terminate()
+            process_to_stop = self.process
             self.process = None
             # Drain remaining snapshots from worker queue upon stop to capture
             # the final match epoch and preserve latest telemetry for saving/inspection.
@@ -345,10 +345,12 @@ class ArenaSimulation(FormState):
                     break
             self.gps_tracker.reset()
 
-        self.is_running = not self.is_running
-        self.sim_button.label = "Stop simulation" if self.is_running else "Start simulation"
-        self._update_active_items()
-        return None
+            self.is_running = False
+            self.sim_button.label = "Start simulation"
+            self._update_active_items()
+            if process_to_stop is not None:
+                return TerminateProcess(process_to_stop)
+            return None
 
     def update(self, dt: float, screen_size: Size) -> None:
         super().update(dt, screen_size)
@@ -416,7 +418,7 @@ class ArenaSimulation(FormState):
                     gladiator.draw(screen, x_start, y_start)
 
             if self.gps_tracker.rate > 0 and mode == Mode.SIMULATION:
-                gps_suffix = f" ({format_compact(self.gps_tracker.rate)} gen/s)"
+                gps_suffix = f" ({int(self.gps_tracker.rate)} gen/s)"
             else:
                 gps_suffix = ""
 
