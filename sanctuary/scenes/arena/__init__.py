@@ -13,6 +13,7 @@ from .entities import (
 )
 from .generators import (
     ARENA_PRESETS,
+    cycle_next_map,
     generate_colosseum,
     generate_concentric_bastions,
     generate_greek_amphitheater,
@@ -62,6 +63,9 @@ from .textures import (
     FLOOR_TEXTURE,
     GLADIATOR_TEXTURE,
     PLAYER_TEXTURE,
+    RETICLE_AMBER_TEXTURE,
+    RETICLE_RED_TEXTURE,
+    SelectionTexture,
     Texture,
     WALL_TEXTURE,
 )
@@ -110,6 +114,9 @@ __all__ = [
     "PlaybackSettings",
     "PLAYER_TEXTURE",
     "RED",
+    "RETICLE_AMBER_TEXTURE",
+    "RETICLE_RED_TEXTURE",
+    "SelectionTexture",
     "WorldConfig",
     "SimulationWorker",
     "SimulationSave",
@@ -124,6 +131,7 @@ __all__ = [
     "ZOOM_SCALES",
     "create_gladiator",
     "create_player",
+    "cycle_next_map",
     "generate_colosseum",
     "generate_concentric_bastions",
     "generate_greek_amphitheater",

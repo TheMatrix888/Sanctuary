@@ -7,30 +7,37 @@ from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import Commands, Pop, State, ToggleMetrics
-from .config import ARENA_HEIGHT, ARENA_WIDTH, ZOOM_SCALES
+from .config import ARENA_HEIGHT, ARENA_WIDTH, DEFAULT_MAP, ZOOM_SCALES
 from .entities import Entity, create_player
-from .generators import ARENA_PRESETS
+from .generators import ARENA_PRESETS, cycle_next_map
+from .textures import RETICLE_AMBER_TEXTURE, RETICLE_RED_TEXTURE
 from .tile_map import TileMap
 
 
 class Arena(State):
     """
     Interactive arena state supporting discrete player exploration, 360-degree FOV,
-    preset cycling (Tab), god-view toggle (F1), and multi-LOD scaling (F2).
+    map preset cycling (F2), god-view toggle (F1), and multi-LOD scaling (Tab).
     """
+    map: str
     tilemap: TileMap
     player: Entity
-    player_dx: int
-    player_dy: int
     visible_cells: set[Point]
-    preset_index: int
     scale_index: int
     raytracing_enabled: bool
+    shooting: bool
+    crosshair: Point
+    dx: int
+    dy: int
 
-    def __init__(self) -> None:
-        self.preset_index = 0
+    def __init__(self, map_name: str = DEFAULT_MAP) -> None:
+        self.map = map_name
         self.scale_index = 0
         self.raytracing_enabled = True
+        self.shooting = False
+        self.crosshair = Point(0, 0)
+        self.dx = 0
+        self.dy = 0
         self.reset()
 
     @property
@@ -38,9 +45,11 @@ class Arena(State):
         """Returns the active (width, height) cell footprint scale."""
         return ZOOM_SCALES[self.scale_index]
 
-    def reset(self, preset_index: int = 0) -> None:
-        self.preset_index = preset_index % len(ARENA_PRESETS)
-        generator = list(ARENA_PRESETS.values())[self.preset_index]
+    def reset(self, map_name: str | None = None) -> None:
+        if map_name is not None and map_name in ARENA_PRESETS:
+            self.map = map_name
+
+        generator = ARENA_PRESETS[self.map]
         self.tilemap = generator(ARENA_WIDTH, ARENA_HEIGHT)
 
         self.player = create_player(
@@ -48,12 +57,14 @@ class Arena(State):
             ARENA_HEIGHT // 2,
             10,
             100,
-            100
+            100,
         )
-        self.player_dx = 0
-        self.player_dy = 0
+        self.crosshair = Point(self.player.x, max(0, self.player.y - 1))
+        self.dx = 0
+        self.dy = 0
 
         self.update_fov()
+        self.shooting = False
 
     def update_fov(self) -> None:
         """Recalculates player line-of-sight visibility cache."""
@@ -65,15 +76,15 @@ class Arena(State):
         )
 
     def handle_input(self, input_handler: InputHandler) -> Commands:
-        # Movement controls
+        # Directional navigation controls (shared vector for movement and aiming)
         if input_handler.is_repeated(Key.RIGHT, Key.D):
-            self.player_dx += 1
+            self.dx += 1
         if input_handler.is_repeated(Key.LEFT, Key.A):
-            self.player_dx -= 1
+            self.dx -= 1
         if input_handler.is_repeated(Key.UP, Key.W):
-            self.player_dy -= 1
+            self.dy -= 1
         if input_handler.is_repeated(Key.DOWN, Key.S):
-            self.player_dy += 1
+            self.dy += 1
 
         # Footprint scale / zoom toggle (Tab)
         if input_handler.just_pressed(Key.TAB):
@@ -83,9 +94,21 @@ class Arena(State):
         if input_handler.just_pressed(Key.F1):
             self.raytracing_enabled = not self.raytracing_enabled
 
-        # Preset cycling (F2)
+        # Map preset cycling (F2)
         if input_handler.just_pressed(Key.F2):
-            self.reset(self.preset_index + 1)
+            self.reset(cycle_next_map(self.map))
+
+        # Shooting toggle (Enter)
+        if input_handler.just_pressed(Key.ENTER):
+            self.shooting = not self.shooting
+            self.dx = 0
+            self.dy = 0
+            if self.shooting:
+                target = Point(self.player.x, self.player.y - 1)
+                if 0 <= target.y and target in self.visible_cells:
+                    self.crosshair = target
+                else:
+                    self.crosshair = Point(self.player.x, self.player.y)
 
         # Lifecycle navigation
         if input_handler.just_pressed(Key.ESC):
@@ -96,28 +119,37 @@ class Arena(State):
         return None
 
     def update(self, dt: float, screen_size: Size) -> None:
-        if self.player_dx != 0 and self.player_dy != 0:
-            # Diagonal movement attempt: enforce strict corner collision check (supercover raycasting parity).
-            # Both orthogonal intermediate steps and the target cell must be walkable to prevent diagonal clipping.
-            can_x = self.tilemap.is_walkable(self.player.x + self.player_dx, self.player.y)
-            can_y = self.tilemap.is_walkable(self.player.x, self.player.y + self.player_dy)
-            target = self.tilemap.is_walkable(self.player.x + self.player_dx, self.player.y + self.player_dy)
+        if self.shooting:
+            if self.dx != 0 or self.dy != 0:
+                target_x = self.crosshair.x + self.dx
+                target_y = self.crosshair.y + self.dy
+                if 0 <= target_x < ARENA_WIDTH and 0 <= target_y < ARENA_HEIGHT:
+                    self.crosshair = Point(target_x, target_y)
+                self.dx = 0
+                self.dy = 0
+        else:
+            if self.dx != 0 and self.dy != 0:
+                # Diagonal movement attempt: enforce strict corner collision check (supercover raycasting parity).
+                # Both orthogonal intermediate steps and the target cell must be walkable to prevent diagonal clipping.
+                can_x = self.tilemap.is_walkable(self.player.x + self.dx, self.player.y)
+                can_y = self.tilemap.is_walkable(self.player.x, self.player.y + self.dy)
+                target = self.tilemap.is_walkable(self.player.x + self.dx, self.player.y + self.dy)
 
-            if can_x and can_y and target:
-                self.player.x += self.player_dx
-                self.player.y += self.player_dy
-                self.update_fov()
-            self.player_dx = 0
-            self.player_dy = 0
-        elif self.player_dx != 0 or self.player_dy != 0:
-            target_x = self.player.x + self.player_dx
-            target_y = self.player.y + self.player_dy
-            if self.tilemap.is_walkable(target_x, target_y):
-                self.player.x = target_x
-                self.player.y = target_y
-                self.update_fov()
-            self.player_dx = 0
-            self.player_dy = 0
+                if can_x and can_y and target:
+                    self.player.x += self.dx
+                    self.player.y += self.dy
+                    self.update_fov()
+                self.dx = 0
+                self.dy = 0
+            elif self.dx != 0 or self.dy != 0:
+                target_x = self.player.x + self.dx
+                target_y = self.player.y + self.dy
+                if self.tilemap.is_walkable(target_x, target_y):
+                    self.player.x = target_x
+                    self.player.y = target_y
+                    self.update_fov()
+                self.dx = 0
+                self.dy = 0
 
     def draw(self, screen: Screen) -> None:
         scale_w, scale_h = self.tile_scale
@@ -129,15 +161,28 @@ class Arena(State):
         visible = self.visible_cells if self.raytracing_enabled else None
         self.tilemap.draw(screen, origin_x, origin_y, scale=self.tile_scale, visible_cells=visible)
         self.player.draw(screen, origin_x, origin_y, scale=self.tile_scale, transparent_space=True)
+        if self.shooting:
+            in_fov = self.crosshair in self.visible_cells
+            reticle_texture = RETICLE_AMBER_TEXTURE if in_fov else RETICLE_RED_TEXTURE
+            reticle_texture.draw(
+                screen,
+                origin_x,
+                origin_y,
+                self.crosshair.x,
+                self.crosshair.y,
+                scale=self.tile_scale,
+            )
 
         # Bottom status bar with scale, vision mode, and preset telemetry
         vision_mode = "Raytracing" if self.raytracing_enabled else "Full Map"
+        input_mode = "Shoot" if self.shooting else "Walk"
         scale_label = f"{scale_w}x{scale_h}"
         status_text = (
             f"x: {self.player.x:2d} y: {self.player.y:2d} | "
             f"[Tab] Scale: {scale_label} | "
             f"[F1] {vision_mode} | "
-            f"[F2] change preset"
+            f"[F2] Map: {self.map} | "
+            f"[Enter] {input_mode}"
         )
         screen.draw_text(
             0,

@@ -235,3 +235,12 @@ ARENA_PRESETS: dict[str, Callable[[int, int], TileMap]] = {
     "Sierpinski Ruins": generate_sierpinski_ruins,
     "Empty Proving Ground": generate_proving_ground,
 }
+
+
+def cycle_next_map(current_map: str) -> str:
+    """Returns the next arena map preset name in cyclic order without list allocations."""
+    iterator = iter(ARENA_PRESETS)
+    for key in iterator:
+        if key == current_map:
+            return next(iterator, next(iter(ARENA_PRESETS)))
+    return next(iter(ARENA_PRESETS))
