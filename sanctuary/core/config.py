@@ -11,7 +11,7 @@ MIN_ROWS: int = 30
 @dataclass(slots=True, frozen=True)
 class DisplayConfig:
     """Target hardware display, typography, and canvas buffer parameters."""
-    columns: int = 140
+    columns: int = 160
     rows: int = 40
     min_columns: int = MIN_COLUMNS
     min_rows: int = MIN_ROWS

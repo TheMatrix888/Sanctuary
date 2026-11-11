@@ -144,8 +144,7 @@ def draw_shot_ray(
 ) -> None:
     """
     Renders a continuous, gapless ballistic beam into the screen back buffer.
-    Guarantees strict 8-connected continuity with zero dropped or broken segments,
-    zero occurrences of double slashes ('//', '\\\\') horizontally, and zero vertically stacked slashes ('\\\\n\\\\', '/\\n/').
+    Guarantees strict 8-connected continuity with zero dropped or broken segments.
     """
     scale_w, scale_h = scale
 

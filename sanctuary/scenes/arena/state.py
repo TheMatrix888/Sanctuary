@@ -2,6 +2,7 @@
 Interactive tactical arena sandbox with discrete raytracing, procedural presets,
 and multi-resolution Texture rendering (1x1, 2x1, 4x2).
 """
+from sanctuary.core.config import MIN_COLUMNS, MIN_ROWS
 from sanctuary.core.geometry import Point, Size, cast_ray, field_of_view
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color
@@ -36,6 +37,8 @@ class Arena(State):
     shot_ray: ShotRay | None
     shot_timer: float
     trail_timed: bool
+    screen_size: Size
+    _last_mouse_pos: Point | None
 
     def __init__(self, map_name: str = DEFAULT_MAP) -> None:
         self.map = map_name
@@ -48,6 +51,8 @@ class Arena(State):
         self.shot_ray = None
         self.shot_timer = 0.0
         self.trail_timed = True
+        self.screen_size = Size(MIN_COLUMNS, MIN_ROWS)
+        self._last_mouse_pos = None
         self.reset()
 
     @property
@@ -87,6 +92,24 @@ class Arena(State):
             self.tilemap.is_opaque,
         )
 
+    def screen_to_tile(self, screen_col: int, screen_row: int) -> Point:
+        """Converts screen character cell coordinates to arena tile coordinates."""
+        scale_w, scale_h = self.tile_scale
+        center_col = self.screen_size.columns // 2
+        center_row = self.screen_size.rows // 2
+        origin_x = center_col - self.player.x * scale_w
+        origin_y = center_row - self.player.y * scale_h
+        return Point((screen_col - origin_x) // scale_w, (screen_row - origin_y) // scale_h)
+
+    def tile_to_screen(self, tile_x: int, tile_y: int) -> Point:
+        """Converts arena tile coordinates to top-left screen character cell coordinates."""
+        scale_w, scale_h = self.tile_scale
+        center_col = self.screen_size.columns // 2
+        center_row = self.screen_size.rows // 2
+        origin_x = center_col - self.player.x * scale_w
+        origin_y = center_row - self.player.y * scale_h
+        return Point(origin_x + tile_x * scale_w, origin_y + tile_y * scale_h)
+
     def fire(self) -> None:
         """Traces and renders a ballistic projectile beam toward the crosshair."""
         self.shot_ray = trace_shot_ray(
@@ -101,6 +124,25 @@ class Arena(State):
             self.shot_timer = 0.15
 
     def handle_input(self, input_handler: InputHandler) -> Commands:
+        # Mouse aiming and shooting
+        if input_handler.mouse_position is not None:
+            col = input_handler.mouse_position.x
+            row = input_handler.mouse_position.y
+            if row < self.screen_size.rows - 2:
+                hovered_tile = self.screen_to_tile(col, row)
+                if 0 <= hovered_tile.x < ARENA_WIDTH and 0 <= hovered_tile.y < ARENA_HEIGHT:
+                    if input_handler.mouse_position != self._last_mouse_pos:
+                        self._last_mouse_pos = input_handler.mouse_position
+                        self.crosshair = hovered_tile
+
+                    if input_handler.mouse_just_pressed:
+                        self.crosshair = hovered_tile
+                        self.shooting = True
+                        self.fire()
+                    elif input_handler.mouse_right_just_pressed:
+                        self.crosshair = hovered_tile
+                        self.shooting = not self.shooting
+
         # Directional navigation controls (shared vector for movement and aiming)
         if input_handler.is_repeated(Key.RIGHT, Key.D):
             self.dx += 1
@@ -148,6 +190,8 @@ class Arena(State):
         return None
 
     def update(self, dt: float, screen_size: Size) -> None:
+        self.screen_size = screen_size
+
         # Clear turn-based trail on input deltas
         if not self.trail_timed and (self.dx != 0 or self.dy != 0):
             self.shot_ray = None
@@ -222,18 +266,27 @@ class Arena(State):
         input_mode = "Shoot" if self.shooting else "Walk"
         trail_mode = "Timed (0.15s)" if self.trail_timed else "Turn"
         scale_label = f"{scale_w}x{scale_h}"
-        fire_hint = " | [Space] Fire" if self.shooting else ""
-        status_text = (
-            f"x: {self.player.x:2d} y: {self.player.y:2d} | "
+        if self.shooting:
+            aim_hint = f" | aim x: {self.crosshair.x:2d} y: {self.crosshair.y:2d} | [LMB/Space/F] Fire"
+        else:
+            aim_hint = ""
+        status_text = f"x: {self.player.x:2d} y: {self.player.y:2d}{aim_hint}"
+        controls_text = (
             f"[Tab] Scale: {scale_label} | "
             f"[F1] {vision_mode} | "
             f"[F2] Map: {self.map} | "
             f"[F4] Trail: {trail_mode} | "
-            f"[Enter] {input_mode}{fire_hint}"
+            f"[Enter/RMB] {input_mode}"
+        )
+        screen.draw_text(
+            0,
+            screen.size.rows - 2,
+            status_text.ljust(screen.size.columns)[:screen.size.columns],
+            bg_color=Color(48, 48, 48),
         )
         screen.draw_text(
             0,
             screen.size.rows - 1,
-            status_text.ljust(screen.size.columns)[:screen.size.columns],
+            controls_text.ljust(screen.size.columns)[:screen.size.columns],
             bg_color=Color(48, 48, 48),
         )

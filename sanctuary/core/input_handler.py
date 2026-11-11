@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from ctypes import wintypes
 from enum import StrEnum
 
+from sanctuary.core.geometry import Point
 from sanctuary.core.terminal import WindowsTerminal
 
 DEFAULT_INITIAL_DELAY: float = 0.20
@@ -66,6 +67,11 @@ class InputHandler(ABC):
     current_keys: set[Key]
     previous_keys: set[Key]
     repeated_keys: set[Key]
+    mouse_position: Point | None
+    mouse_pressed: bool
+    mouse_just_pressed: bool
+    mouse_right_pressed: bool
+    mouse_right_just_pressed: bool
     initial_delay: float
     repeat_interval: float
     _key_press_times: dict[Key, float]
@@ -79,6 +85,11 @@ class InputHandler(ABC):
         self.current_keys = set()
         self.previous_keys = set()
         self.repeated_keys = set()
+        self.mouse_position = None
+        self.mouse_pressed = False
+        self.mouse_just_pressed = False
+        self.mouse_right_pressed = False
+        self.mouse_right_just_pressed = False
         self.initial_delay = initial_delay
         self.repeat_interval = repeat_interval
         self._key_press_times = {}
@@ -233,20 +244,63 @@ class WindowsInputHandler(InputHandler):
         self._user32.GetAsyncKeyState.restype = wintypes.SHORT
         self._user32.GetForegroundWindow.argtypes = []
         self._user32.GetForegroundWindow.restype = wintypes.HWND
+        self._user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
+        self._user32.GetCursorPos.restype = wintypes.BOOL
+        self._user32.ScreenToClient.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
+        self._user32.ScreenToClient.restype = wintypes.BOOL
+        self._user32.GetClientRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+        self._user32.GetClientRect.restype = wintypes.BOOL
 
     def update(self) -> None:
-        """Captures hardware keystroke state snapshot for the current frame."""
+        """Captures hardware keystroke and mouse state snapshot for the current frame."""
         self.previous_keys = self.current_keys.copy()
         self.current_keys = set()
 
         # Ignore input when the terminal window is not in foreground focus
-        if self._user32.GetForegroundWindow() != self.terminal.hwnd:
+        if not self.terminal.hwnd or self._user32.GetForegroundWindow() != self.terminal.hwnd:
+            self.mouse_position = None
+            self.mouse_pressed = False
+            self.mouse_just_pressed = False
+            self.mouse_right_pressed = False
+            self.mouse_right_just_pressed = False
             self._update_typematic_repeat()
             return
 
         for key, vk_code in self.KEY_MAP.items():
             if self._user32.GetAsyncKeyState(vk_code) & KEY_PRESSED_MASK:
                 self.current_keys.add(key)
+
+        # Mouse position and button tracking
+        pt = wintypes.POINT()
+        if (
+            self._user32.GetCursorPos(ctypes.byref(pt))
+            and self._user32.ScreenToClient(self.terminal.hwnd, ctypes.byref(pt))
+        ):
+            rc_cli = wintypes.RECT()
+            if (
+                self._user32.GetClientRect(self.terminal.hwnd, ctypes.byref(rc_cli))
+                and 0 <= pt.x < rc_cli.right
+                and 0 <= pt.y < rc_cli.bottom
+            ):
+                font_size = self.terminal.get_font_size()
+                font_w = max(1, font_size.width)
+                font_h = max(1, font_size.height)
+                self.mouse_position = Point(pt.x // font_w, pt.y // font_h)
+            else:
+                self.mouse_position = None
+        else:
+            self.mouse_position = None
+
+        lbutton_down = bool(self._user32.GetAsyncKeyState(0x01) & KEY_PRESSED_MASK)
+        rbutton_down = bool(self._user32.GetAsyncKeyState(0x02) & KEY_PRESSED_MASK)
+
+        active_lbutton = lbutton_down and (self.mouse_position is not None)
+        self.mouse_just_pressed = active_lbutton and not self.mouse_pressed
+        self.mouse_pressed = active_lbutton
+
+        active_rbutton = rbutton_down and (self.mouse_position is not None)
+        self.mouse_right_just_pressed = active_rbutton and not self.mouse_right_pressed
+        self.mouse_right_pressed = active_rbutton
 
         self._update_typematic_repeat()
 
@@ -264,6 +318,9 @@ class VirtualInputHandler(InputHandler):
     ) -> None:
         super().__init__(initial_delay=initial_delay, repeat_interval=repeat_interval)
         self._held_keys: set[Key] = set()
+        self._virtual_mouse_pos: Point | None = None
+        self._virtual_mouse_pressed: bool = False
+        self._virtual_mouse_right_pressed: bool = False
 
     def press(self, key: Key | str) -> None:
         """Simulates physically pressing and holding a key down."""
@@ -277,8 +334,40 @@ class VirtualInputHandler(InputHandler):
         if normalized:
             self._held_keys.discard(normalized)
 
+    def set_mouse_position(self, pos: Point | None) -> None:
+        """Sets the simulated mouse position in character cells."""
+        self._virtual_mouse_pos = pos
+
+    def press_mouse(self, button: int = 1) -> None:
+        """Simulates pressing and holding a mouse button (1 = Left, 2 = Right)."""
+        if button == 1:
+            self._virtual_mouse_pressed = True
+        elif button == 2:
+            self._virtual_mouse_right_pressed = True
+
+    def release_mouse(self, button: int = 1) -> None:
+        """Simulates releasing a mouse button (1 = Left, 2 = Right)."""
+        if button == 1:
+            self._virtual_mouse_pressed = False
+        elif button == 2:
+            self._virtual_mouse_right_pressed = False
+
+    def click_mouse(self, pos: Point | None = None, button: int = 1) -> None:
+        """Simulates clicking a mouse button at an optional cell coordinate."""
+        if pos is not None:
+            self._virtual_mouse_pos = pos
+        self.press_mouse(button=button)
+
     def update(self, now: float | None = None) -> None:
-        """Advances the virtual frame state, transitioning held keys to current."""
+        """Advances the virtual frame state, transitioning held keys and mouse to current."""
         self.previous_keys = self.current_keys.copy()
         self.current_keys = self._held_keys.copy()
         self._update_typematic_repeat(now)
+
+        self.mouse_position = self._virtual_mouse_pos
+
+        self.mouse_just_pressed = self._virtual_mouse_pressed and not self.mouse_pressed
+        self.mouse_pressed = self._virtual_mouse_pressed
+
+        self.mouse_right_just_pressed = self._virtual_mouse_right_pressed and not self.mouse_right_pressed
+        self.mouse_right_pressed = self._virtual_mouse_right_pressed

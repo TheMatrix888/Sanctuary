@@ -2,6 +2,7 @@
 Unit tests for interactive Arena state, SelectionTexture framing, and map cycling.
 """
 from sanctuary.core.geometry import Point, Size
+from sanctuary.core.input_handler import VirtualInputHandler
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
 from sanctuary.core.terminal import VirtualTerminal
@@ -356,14 +357,103 @@ def test_arena_shot_trail_draw() -> None:
     screen = Screen(terminal)
     arena.draw(screen)
 
-    # Player is centered at columns // 2 = 70, rows // 2 = 20
-    # Beam extends from player at screen_x = 70 to hit at screen_x = 74
-    # Reticle left bracket is at screen_x = 73
-    # Hit cell is at screen_x = 74
-    # Reticle right bracket is at screen_x = 75
-    assert screen.back_buffer.cells[20][70].char == "☺"
-    assert screen.back_buffer.cells[20][71].char == "-"
-    assert screen.back_buffer.cells[20][72].char == "-"
-    assert screen.back_buffer.cells[20][73].char == "["
-    assert screen.back_buffer.cells[20][74].char == "*"
-    assert screen.back_buffer.cells[20][75].char == "]"
+    center_col = screen.size.columns // 2
+    center_row = screen.size.rows // 2
+
+    # Player is centered at center_col, center_row
+    # Beam extends from player at center_col to hit at center_col + 4
+    # Reticle left bracket is at center_col + 3
+    # Hit cell is at center_col + 4
+    # Reticle right bracket is at center_col + 5
+    assert screen.back_buffer.cells[center_row][center_col].char == "☺"
+    assert screen.back_buffer.cells[center_row][center_col + 1].char == "-"
+    assert screen.back_buffer.cells[center_row][center_col + 2].char == "-"
+    assert screen.back_buffer.cells[center_row][center_col + 3].char == "["
+    assert screen.back_buffer.cells[center_row][center_col + 4].char == "*"
+    assert screen.back_buffer.cells[center_row][center_col + 5].char == "]"
+
+
+def test_virtual_input_handler_mouse() -> None:
+    handler = VirtualInputHandler()
+    assert handler.mouse_position is None
+    assert not handler.mouse_pressed
+    assert not handler.mouse_just_pressed
+
+    # Hover mouse at (15, 25)
+    handler.set_mouse_position(Point(15, 25))
+    handler.update()
+    assert handler.mouse_position == Point(15, 25)
+    assert not handler.mouse_pressed
+    assert not handler.mouse_just_pressed
+
+    # Press left mouse button
+    handler.press_mouse(1)
+    handler.update()
+    assert handler.mouse_pressed
+    assert handler.mouse_just_pressed
+
+    # Held down on second frame: pressed is True, just_pressed is False
+    handler.update()
+    assert handler.mouse_pressed
+    assert not handler.mouse_just_pressed
+
+    # Release button
+    handler.release_mouse(1)
+    handler.update()
+    assert not handler.mouse_pressed
+    assert not handler.mouse_just_pressed
+
+
+def test_arena_mouse_aiming_and_shooting() -> None:
+    arena = Arena()
+    handler = VirtualInputHandler()
+    screen_size = Size(140, 40)
+    arena.update(0.016, screen_size)
+
+    # Initial state
+    assert not arena.shooting
+    assert arena.shot_ray is None
+
+    # Hovering over tile (player.x + 3, player.y + 2)
+    target_screen_pt = arena.tile_to_screen(arena.player.x + 3, arena.player.y + 2)
+    handler.set_mouse_position(target_screen_pt)
+    handler.update()
+    arena.handle_input(handler)
+
+    assert arena.crosshair == Point(arena.player.x + 3, arena.player.y + 2)
+    assert not arena.shooting
+
+    # Right click toggles aiming mode
+    handler.click_mouse(button=2)
+    handler.update()
+    arena.handle_input(handler)
+    assert arena.shooting
+
+    handler.release_mouse(button=2)
+    handler.update()
+
+    # Left click fires immediately and updates crosshair
+    target_fire_tile = Point(arena.player.x + 4, arena.player.y)
+    fire_screen_pt = arena.tile_to_screen(target_fire_tile.x, target_fire_tile.y)
+    handler.set_mouse_position(fire_screen_pt)
+    handler.press_mouse(button=1)
+    handler.update()
+    arena.handle_input(handler)
+
+    assert arena.crosshair == target_fire_tile
+    assert arena.shooting
+    assert arena.shot_ray is not None
+    assert arena.shot_ray.hit == target_fire_tile
+
+    # Clicks on the status bar (rows 38 and 39) must be ignored
+    handler.release_mouse(button=1)
+    handler.update()
+    arena.shot_ray = None
+
+    status_bar_pt = Point(70, screen_size.rows - 2)
+    handler.set_mouse_position(status_bar_pt)
+    handler.press_mouse(button=1)
+    handler.update()
+    arena.handle_input(handler)
+    # Target not altered and no fire triggered
+    assert arena.shot_ray is None
