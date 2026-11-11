@@ -164,6 +164,7 @@ RETICLE_BASE_TEXTURE = SelectionTexture(
 RETICLE_AMBER_TEXTURE = RETICLE_BASE_TEXTURE.with_color(Color(255, 190, 40))
 RETICLE_RED_TEXTURE = RETICLE_BASE_TEXTURE.with_color(Color(255, 60, 60))
 
+
 """
 ◑  ◐
 //\\\\

@@ -55,7 +55,16 @@ from .worker import (
     SimulationWorker,
     run_simulation_worker,
 )
-from .state import Arena
+from .ballistics import (
+    BEAM_COLOR,
+    HIT_COLOR,
+    ShotRay,
+    draw_shot_ray,
+    trace_shot_ray,
+)
+from .state import (
+    Arena,
+)
 from .textures import (
     BLOOD_FLOOR_TEXTURE,
     CHASM_TEXTURE,
@@ -87,6 +96,7 @@ __all__ = [
     "Arena",
     "ArenaSetupState",
     "ArenaRunningState",
+    "BEAM_COLOR",
     "BLOOD_FLOOR",
     "BLOOD_FLOOR_TEXTURE",
     "BLUE",
@@ -108,6 +118,7 @@ __all__ = [
     "Gladiator",
     "GpsTracker",
     "GRAY",
+    "HIT_COLOR",
     "LIME",
     "Mode",
     "ORANGE",
@@ -117,6 +128,7 @@ __all__ = [
     "RETICLE_AMBER_TEXTURE",
     "RETICLE_RED_TEXTURE",
     "SelectionTexture",
+    "ShotRay",
     "WorldConfig",
     "SimulationWorker",
     "SimulationSave",
@@ -132,6 +144,7 @@ __all__ = [
     "create_gladiator",
     "create_player",
     "cycle_next_map",
+    "draw_shot_ray",
     "generate_colosseum",
     "generate_concentric_bastions",
     "generate_greek_amphitheater",
@@ -139,4 +152,5 @@ __all__ = [
     "generate_sierpinski_ruins",
     "generate_tectonic_chasm",
     "run_simulation_worker",
+    "trace_shot_ray",
 ]

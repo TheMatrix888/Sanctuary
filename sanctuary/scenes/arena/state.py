@@ -2,15 +2,19 @@
 Interactive tactical arena sandbox with discrete raytracing, procedural presets,
 and multi-resolution Texture rendering (1x1, 2x1, 4x2).
 """
-from sanctuary.core.geometry import Point, Size, field_of_view
+from sanctuary.core.geometry import Point, Size, cast_ray, field_of_view
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
 from sanctuary.core.state import Commands, Pop, State, ToggleMetrics
+from .ballistics import ShotRay, draw_shot_ray, trace_shot_ray
 from .config import ARENA_HEIGHT, ARENA_WIDTH, DEFAULT_MAP, ZOOM_SCALES
 from .entities import Entity, create_player
 from .generators import ARENA_PRESETS, cycle_next_map
-from .textures import RETICLE_AMBER_TEXTURE, RETICLE_RED_TEXTURE
+from .textures import (
+    RETICLE_AMBER_TEXTURE,
+    RETICLE_RED_TEXTURE,
+)
 from .tile_map import TileMap
 
 
@@ -29,6 +33,9 @@ class Arena(State):
     crosshair: Point
     dx: int
     dy: int
+    shot_ray: ShotRay | None
+    shot_timer: float
+    trail_timed: bool
 
     def __init__(self, map_name: str = DEFAULT_MAP) -> None:
         self.map = map_name
@@ -38,6 +45,9 @@ class Arena(State):
         self.crosshair = Point(0, 0)
         self.dx = 0
         self.dy = 0
+        self.shot_ray = None
+        self.shot_timer = 0.0
+        self.trail_timed = True
         self.reset()
 
     @property
@@ -62,6 +72,8 @@ class Arena(State):
         self.crosshair = Point(self.player.x, max(0, self.player.y - 1))
         self.dx = 0
         self.dy = 0
+        self.shot_ray = None
+        self.shot_timer = 0.0
 
         self.update_fov()
         self.shooting = False
@@ -74,6 +86,19 @@ class Arena(State):
             self.player.view_distance,
             self.tilemap.is_opaque,
         )
+
+    def fire(self) -> None:
+        """Traces and renders a ballistic projectile beam toward the crosshair."""
+        self.shot_ray = trace_shot_ray(
+            self.player.x,
+            self.player.y,
+            self.crosshair.x,
+            self.crosshair.y,
+            self.tilemap.is_opaque,
+            self.player.view_distance
+        )
+        if self.trail_timed:
+            self.shot_timer = 0.15
 
     def handle_input(self, input_handler: InputHandler) -> Commands:
         # Directional navigation controls (shared vector for movement and aiming)
@@ -98,17 +123,21 @@ class Arena(State):
         if input_handler.just_pressed(Key.F2):
             self.reset(cycle_next_map(self.map))
 
+        # Trail mode toggle (F4: Timed vs Turn-based)
+        if input_handler.just_pressed(Key.F4):
+            self.trail_timed = not self.trail_timed
+
+        # Weapon discharge (Space or F when aiming)
+        if self.shooting and input_handler.just_pressed(Key.SPACE, Key.F):
+            self.fire()
+
         # Shooting toggle (Enter)
         if input_handler.just_pressed(Key.ENTER):
             self.shooting = not self.shooting
             self.dx = 0
             self.dy = 0
             if self.shooting:
-                target = Point(self.player.x, self.player.y - 1)
-                if 0 <= target.y and target in self.visible_cells:
-                    self.crosshair = target
-                else:
-                    self.crosshair = Point(self.player.x, self.player.y)
+                self.crosshair = Point(self.player.x, self.player.y)
 
         # Lifecycle navigation
         if input_handler.just_pressed(Key.ESC):
@@ -119,6 +148,16 @@ class Arena(State):
         return None
 
     def update(self, dt: float, screen_size: Size) -> None:
+        # Clear turn-based trail on input deltas
+        if not self.trail_timed and (self.dx != 0 or self.dy != 0):
+            self.shot_ray = None
+
+        # Countdown timed fade trail
+        if self.trail_timed and self.shot_timer > 0:
+            self.shot_timer -= dt
+            if self.shot_timer <= 0:
+                self.shot_ray = None
+
         if self.shooting:
             if self.dx != 0 or self.dy != 0:
                 target_x = self.crosshair.x + self.dx
@@ -160,7 +199,12 @@ class Arena(State):
         origin_y = center_row - self.player.y * scale_h
         visible = self.visible_cells if self.raytracing_enabled else None
         self.tilemap.draw(screen, origin_x, origin_y, scale=self.tile_scale, visible_cells=visible)
+
         self.player.draw(screen, origin_x, origin_y, scale=self.tile_scale, transparent_space=True)
+
+        # Render continuous ballistic projectile beam
+        if self.shot_ray:
+            draw_shot_ray(screen, self.shot_ray, origin_x, origin_y, scale=self.tile_scale)
         if self.shooting:
             in_fov = self.crosshair in self.visible_cells
             reticle_texture = RETICLE_AMBER_TEXTURE if in_fov else RETICLE_RED_TEXTURE
@@ -176,13 +220,16 @@ class Arena(State):
         # Bottom status bar with scale, vision mode, and preset telemetry
         vision_mode = "Raytracing" if self.raytracing_enabled else "Full Map"
         input_mode = "Shoot" if self.shooting else "Walk"
+        trail_mode = "Timed (0.15s)" if self.trail_timed else "Turn"
         scale_label = f"{scale_w}x{scale_h}"
+        fire_hint = " | [Space] Fire" if self.shooting else ""
         status_text = (
             f"x: {self.player.x:2d} y: {self.player.y:2d} | "
             f"[Tab] Scale: {scale_label} | "
             f"[F1] {vision_mode} | "
             f"[F2] Map: {self.map} | "
-            f"[Enter] {input_mode}"
+            f"[F4] Trail: {trail_mode} | "
+            f"[Enter] {input_mode}{fire_hint}"
         )
         screen.draw_text(
             0,
