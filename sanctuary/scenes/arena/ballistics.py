@@ -5,7 +5,7 @@ Provides sub-pixel continuous bullet trajectories decoupled from discrete tile t
 from dataclasses import dataclass
 from typing import Callable
 
-from sanctuary.core.geometry import Point, cast_ray
+from sanctuary.core.geometry import Point, ray8
 from sanctuary.core.primitives import Cell, Color
 from sanctuary.core.screen import Screen
 
@@ -29,28 +29,19 @@ class ShotRay:
 def clamp_to_radius(center_x: int, center_y: int, target_x: int, target_y: int, radius: int) -> tuple[int, int]:
     """
     Clamps (target_x, target_y) to the discrete Euclidean circle of radius `radius` centered at (center_x, center_y).
-    Guarantees the clamped point satisfies (x - cx)^2 + (y - cy)^2 <= radius^2.
+    Walks along the discrete ray towards the target and stops at the Euclidean circular boundary.
     """
-    dx = target_x - center_x
-    dy = target_y - center_y
-    if dx * dx + dy * dy <= radius * radius:
-        return target_x, target_y
+    center = Point(center_x, center_y)
+    target = Point(target_x, target_y)
+    max_dist_sq = radius * radius
+    last = center
 
-    distance = (dx * dx + dy * dy) ** 0.5
-    factor = radius / distance
-    clamped_x = center_x + round(dx * factor)
-    clamped_y = center_y + round(dy * factor)
+    for point in ray8(center, target):
+        if (point.x - center_x) ** 2 + (point.y - center_y) ** 2 > max_dist_sq:
+            break
+        last = point
 
-    # Step back along the major axis until strictly within Euclidean boundary
-    while (clamped_x - center_x) ** 2 + (clamped_y - center_y) ** 2 > radius * radius:
-        step_x = 1 if clamped_x > center_x else (-1 if clamped_x < center_x else 0)
-        step_y = 1 if clamped_y > center_y else (-1 if clamped_y < center_y else 0)
-        if abs(clamped_x - center_x) >= abs(clamped_y - center_y):
-            clamped_x -= step_x
-        else:
-            clamped_y -= step_y
-
-    return clamped_x, clamped_y
+    return last.x, last.y
 
 
 def trace_shot_ray(
@@ -106,7 +97,7 @@ def trace_shot_ray(
         if step_x and step_y:
             wall_x = is_opaque(curr_x + sx, curr_y)
             wall_y = is_opaque(curr_x, curr_y + sy)
-            if wall_x or wall_y:
+            if wall_x and wall_y:
                 return ShotRay(
                     start=start,
                     target=target,
@@ -141,6 +132,7 @@ def draw_shot_ray(
     origin_x: int,
     origin_y: int,
     scale: tuple[int, int] = (1, 1),
+    is_opaque: Callable[[int, int], bool] | None = None,
 ) -> None:
     """
     Renders a continuous, gapless ballistic beam into the screen back buffer.
@@ -167,32 +159,80 @@ def draw_shot_ray(
 
     dx = screen_hit_x - screen_start_x
     dy = screen_hit_y - screen_start_y
-    abs_dx = abs(dx)
-    abs_dy = abs(dy)
-    step_dir_x = 1 if dx > 0 else (-1 if dx < 0 else 0)
-    step_dir_y = 1 if dy > 0 else (-1 if dy < 0 else 0)
-
     is_pure_horizontal = (dy == 0)
     is_pure_vertical = (dx == 0)
-    diag_char = "\\" if (step_dir_x * step_dir_y > 0) else "/"
+    diag_char = "\\" if (dx * dy > 0) else "/"
 
-    err = abs_dx - abs_dy
-    curr_x, curr_y = screen_start_x, screen_start_y
+    # Rasterize along the discrete tile pipe path to guarantee zero penetration of wall tiles
     screen_points: list[tuple[int, int]] = []
+    if len(shot.path) > 1:
+        for i in range(len(shot.path) - 1):
+            t1 = shot.path[i]
+            t2 = shot.path[i + 1]
+            p1 = (origin_x + t1.x * scale_w, origin_y + t1.y * scale_h)
+            p2 = (origin_x + t2.x * scale_w, origin_y + t2.y * scale_h)
+            seg_dx = p2[0] - p1[0]
+            seg_dy = p2[1] - p1[1]
+            seg_abs_dx = abs(seg_dx)
+            seg_abs_dy = abs(seg_dy)
+            seg_err = seg_abs_dx - seg_abs_dy
+            cx, cy = p1[0], p1[1]
+            sx = 1 if seg_dx > 0 else (-1 if seg_dx < 0 else 0)
+            sy = 1 if seg_dy > 0 else (-1 if seg_dy < 0 else 0)
 
-    while True:
-        screen_points.append((curr_x, curr_y))
-        if curr_x == screen_hit_x and curr_y == screen_hit_y:
-            break
-        e2 = 2 * err
-        step_x = e2 > -abs_dy
-        step_y = e2 < abs_dx
-        if step_x:
-            err -= abs_dy
-            curr_x += step_dir_x
-        if step_y:
-            err += abs_dx
-            curr_y += step_dir_y
+            while True:
+                if not screen_points or screen_points[-1] != (cx, cy):
+                    screen_points.append((cx, cy))
+                if cx == p2[0] and cy == p2[1]:
+                    break
+                e2 = 2 * seg_err
+                step_x = e2 > -seg_abs_dy
+                step_y = e2 < seg_abs_dx
+
+                if is_opaque is not None:
+                    cand_x = cx + (sx if step_x else 0)
+                    cand_y = cy + (sy if step_y else 0)
+                    cand_tx = (cand_x - origin_x) // scale_w
+                    cand_ty = (cand_y - origin_y) // scale_h
+                    if is_opaque(cand_tx, cand_ty):
+                        # Candidate step hits opaque wall! Steer along open 8-connected neighbor
+                        if step_y and not is_opaque((cx - origin_x) // scale_w, (cy + sy - origin_y) // scale_h):
+                            step_x = False
+                        elif step_x and not is_opaque((cx + sx - origin_x) // scale_w, (cy - origin_y) // scale_h):
+                            step_y = False
+                        elif not is_opaque((cx + sx - origin_x) // scale_w, (cy + sy - origin_y) // scale_h):
+                            step_x = True
+                            step_y = True
+                        elif not is_opaque((cx - origin_x) // scale_w, (cy + sy - origin_y) // scale_h):
+                            step_x = False
+                            step_y = True
+                        elif not is_opaque((cx + sx - origin_x) // scale_w, (cy - origin_y) // scale_h):
+                            step_x = True
+                            step_y = False
+
+                if step_x:
+                    seg_err -= seg_abs_dy
+                    cx += sx
+                if step_y:
+                    seg_err += seg_abs_dx
+                    cy += sy
+    else:
+        step_dir_x = 1 if dx > 0 else (-1 if dx < 0 else 0)
+        step_dir_y = 1 if dy > 0 else (-1 if dy < 0 else 0)
+        err = abs(dx) - abs(dy)
+        curr_x, curr_y = screen_start_x, screen_start_y
+
+        while True:
+            screen_points.append((curr_x, curr_y))
+            if curr_x == screen_hit_x and curr_y == screen_hit_y:
+                break
+            e2 = 2 * err
+            if e2 > -abs(dy):
+                err -= abs(dy)
+                curr_x += step_dir_x
+            if e2 < abs(dx):
+                err += abs(dx)
+                curr_y += step_dir_y
 
     # Rasterize along screen trajectory, skipping shooter origin tile footprint
     total_points = len(screen_points)
@@ -203,6 +243,13 @@ def draw_shot_ray(
 
         if shooter_min_x <= point_x < shooter_max_x and shooter_min_y <= point_y < shooter_max_y:
             continue
+
+        # Prevent painting beam characters inside opaque wall cells under all circumstances
+        if is_opaque is not None:
+            pt_tx = (point_x - origin_x) // scale_w
+            pt_ty = (point_y - origin_y) // scale_h
+            if is_opaque(pt_tx, pt_ty):
+                continue
 
         # Impact terminal spark (always at top-left of target tile)
         if index == total_points - 1:

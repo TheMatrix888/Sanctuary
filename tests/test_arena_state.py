@@ -163,7 +163,10 @@ def test_draw_shot_ray_pipe_never_enters_wall() -> None:
         arena.scale_index = scale_idx
         scale_w, scale_h = scales[scale_idx]
 
-        for target_offset in [(10, 5), (5, 10), (-8, 6), (7, -7), (0, -10), (12, 0)]:
+        for target_offset in [
+            (10, 5), (5, 10), (-8, 6), (7, -7), (0, -10), (12, 0),
+            (-7, 1), (7, 1), (-6, 4), (5, 4), (-5, -3),
+        ]:
             arena.crosshair = Point(arena.player.x + target_offset[0], arena.player.y + target_offset[1])
             arena.fire()
 
@@ -215,6 +218,7 @@ def test_arena_360_degree_shot_forbidden_patterns_invariant() -> None:
     import math
 
     arena = Arena(map_name="Empty Proving Ground")
+    arena.raytracing_enabled = False
     arena.shooting = True
     terminal = VirtualTerminal(columns=140, rows=40)
     screen = Screen(terminal)
@@ -285,6 +289,7 @@ def test_shot_ray_hit_marker_always_on_top_left_dot() -> None:
     screen = Screen(terminal)
 
     arena = Arena(map_name="Empty Proving Ground")
+    arena.raytracing_enabled = False
     arena.shooting = True
 
     scales = [(1, 1), (2, 1), (2, 2), (4, 2)]
@@ -457,3 +462,28 @@ def test_arena_mouse_aiming_and_shooting() -> None:
     arena.handle_input(handler)
     # Target not altered and no fire triggered
     assert arena.shot_ray is None
+
+
+def test_arena_colosseum_diagonal_visibility_and_firing() -> None:
+    """
+    Verifies that visible floor tiles past pillar corners (such as (25, 12) from (30, 15))
+    can be fired at directly without premature obstacle collision, while shooting into the
+    wall behind it (24, 11) lands at the same floor tile (25, 12).
+    """
+    arena = Arena(map_name="Colosseum Arena")
+    assert arena.player.x == 30 and arena.player.y == 15
+
+    # (25, 12) is visible in FOV
+    assert Point(25, 12) in arena.visible_cells
+    assert not arena.tilemap.is_opaque(25, 12)
+
+    # Shooting directly at (25, 12) reaches target tile
+    shot_open = trace_shot_ray(30, 15, 25, 12, arena.tilemap.is_opaque, arena.player.view_distance)
+    assert shot_open.hit == Point(25, 12)
+    assert not shot_open.is_impact
+
+    # Shooting at wall behind it (24, 11) stops on open floor cell (25, 12)
+    assert arena.tilemap.is_opaque(24, 11)
+    shot_wall = trace_shot_ray(30, 15, 24, 11, arena.tilemap.is_opaque, arena.player.view_distance)
+    assert shot_wall.hit == Point(25, 12)
+    assert shot_wall.is_impact

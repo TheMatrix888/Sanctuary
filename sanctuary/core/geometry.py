@@ -17,7 +17,6 @@ class Point(NamedTuple):
     def __str__(self) -> str:
         return f"({self.x}, {self.y})"
 
-
 class Size(NamedTuple):
     """
     Immutable 2D dimensions for viewports, buffers, surfaces, and UI elements.
@@ -109,56 +108,74 @@ class Rect:
         min_y, max_y = min(y1, y2), max(y1, y2)
         return cls(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1)
 
-
-def cast_ray(
-    start_x: int,
-    start_y: int,
-    target_x: int,
-    target_y: int,
-    is_opaque: Callable[[int, int], bool],
-) -> list[Point]:
+def ray8(start: Point, end: Point) -> list[Point]:
     """
-    Traces a 4-connected discrete ray using supercover integer Bresenham stepping.
-    Stops upon encountering an opaque cell, strictly blocking diagonal corner leaks.
+    Traces an 8-connected discrete ray using symmetric integer Bresenham stepping.
+    Allows single-step diagonal transitions. Includes start and end points.
     """
-    dx = abs(target_x - start_x)
-    dy = abs(target_y - start_y)
-    sx = 1 if target_x > start_x else -1
-    sy = 1 if target_y > start_y else -1
-    x, y = start_x, start_y
+    sx = 1 if end.x > start.x else (-1 if end.x < start.x else 0)
+    sy = 1 if end.y > start.y else (-1 if end.y < start.y else 0)
+    dx = abs(end.x - start.x)
+    dy = abs(end.y - start.y)
     err = dx - dy
-    visible: list[Point] = [Point(x, y)]
+    curr_x, curr_y = start.x, start.y
+    points = [Point(curr_x, curr_y)]
 
-    while x != target_x or y != target_y:
-        if is_opaque(x, y):
-            break
-
+    while curr_x != end.x or curr_y != end.y:
         e2 = 2 * err
-        step_x = e2 > -dy
-        step_y = e2 < dx
-
-        # Corner collision check: if stepping in both axes, check both adjacent cells
-        if step_x and step_y:
-            wall_x = is_opaque(x + sx, y)
-            wall_y = is_opaque(x, y + sy)
-            if wall_x or wall_y:
-                if wall_x:
-                    visible.append(Point(x + sx, y))
-                if wall_y:
-                    visible.append(Point(x, y + sy))
-                break
-
-        if step_x:
+        if e2 > -dy:
             err -= dy
-            x += sx
-        if step_y:
+            curr_x += sx
+        if e2 < dx:
             err += dx
-            y += sy
+            curr_y += sy
+        points.append(Point(curr_x, curr_y))
 
-        visible.append(Point(x, y))
+    return points
 
-    return visible
 
+def ray4(start: Point, end: Point) -> list[Point]:
+    """
+    Traces a 4-connected discrete ray using orthogonal stepping (Manhattan grid traversal).
+    Strictly forbids diagonal shortcuts: every step advances exactly 1 cell along X or Y.
+    Includes start and end points.
+    """
+    sx = 1 if end.x > start.x else (-1 if end.x < start.x else 0)
+    sy = 1 if end.y > start.y else (-1 if end.y < start.y else 0)
+    dx = abs(end.x - start.x)
+    dy = abs(end.y - start.y)
+    err = dx - dy
+    curr_x, curr_y = start.x, start.y
+    points = [Point(curr_x, curr_y)]
+
+    while curr_x != end.x or curr_y != end.y:
+        err2 = 2 * err
+        step_x = err2 > -dy
+        step_y = err2 < dx
+        if step_x and step_y:
+            # Diagonal choice: break into two separate orthogonal steps along the major axis
+            if dx >= dy:
+                curr_x += sx
+                points.append(Point(curr_x, curr_y))
+                curr_y += sy
+                points.append(Point(curr_x, curr_y))
+            else:
+                curr_y += sy
+                points.append(Point(curr_x, curr_y))
+                curr_x += sx
+                points.append(Point(curr_x, curr_y))
+            err -= dy
+            err += dx
+        elif step_x:
+            err -= dy
+            curr_x += sx
+            points.append(Point(curr_x, curr_y))
+        elif step_y:
+            err += dx
+            curr_y += sy
+            points.append(Point(curr_x, curr_y))
+
+    return points
 
 def field_of_view(
     center_x: int,
@@ -184,10 +201,20 @@ def field_of_view(
         targets.append(Point(center_x - view_distance, target_y))
         targets.append(Point(center_x + view_distance, target_y))
 
+    center = Point(center_x, center_y)
     for target in targets:
-        for pt in cast_ray(center_x, center_y, target.x, target.y, is_opaque):
-            if (pt.x - center_x) ** 2 + (pt.y - center_y) ** 2 <= max_dist_sq:
-                visible.add(pt)
+        prev_pt = center
+        for pt in ray8(center, target):
+            if (pt.x - center_x) ** 2 + (pt.y - center_y) ** 2 > max_dist_sq:
+                break
+            # Diagonal corner pinch: two touching walls block diagonal vision
+            if pt.x != prev_pt.x and pt.y != prev_pt.y:
+                if is_opaque(pt.x, prev_pt.y) and is_opaque(prev_pt.x, pt.y):
+                    break
+            visible.add(pt)
+            if is_opaque(pt.x, pt.y):
+                break
+            prev_pt = pt
 
     # Wall-face illumination pass:
     # Any opaque wall adjacent to an illuminated transparent tile within circular radius

@@ -3,7 +3,7 @@ Interactive tactical arena sandbox with discrete raytracing, procedural presets,
 and multi-resolution Texture rendering (1x1, 2x1, 4x2).
 """
 from sanctuary.core.config import MIN_COLUMNS, MIN_ROWS
-from sanctuary.core.geometry import Point, Size, cast_ray, field_of_view
+from sanctuary.core.geometry import Point, Size, field_of_view
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
@@ -110,8 +110,11 @@ class Arena(State):
         origin_y = center_row - self.player.y * scale_h
         return Point(origin_x + tile_x * scale_w, origin_y + tile_y * scale_h)
 
-    def fire(self) -> None:
-        """Traces and renders a ballistic projectile beam toward the crosshair."""
+    def fire(self, force: bool = False) -> bool:
+        """Traces and renders a ballistic projectile beam toward the crosshair if visible in FOV."""
+        if not force and self.raytracing_enabled and self.crosshair not in self.visible_cells:
+            return False
+
         self.shot_ray = trace_shot_ray(
             self.player.x,
             self.player.y,
@@ -122,6 +125,7 @@ class Arena(State):
         )
         if self.trail_timed:
             self.shot_timer = 0.15
+        return True
 
     def handle_input(self, input_handler: InputHandler) -> Commands:
         # Mouse aiming and shooting
@@ -248,7 +252,14 @@ class Arena(State):
 
         # Render continuous ballistic projectile beam
         if self.shot_ray:
-            draw_shot_ray(screen, self.shot_ray, origin_x, origin_y, scale=self.tile_scale)
+            draw_shot_ray(
+                screen,
+                self.shot_ray,
+                origin_x,
+                origin_y,
+                scale=self.tile_scale,
+                is_opaque=self.tilemap.is_opaque,
+            )
         if self.shooting:
             in_fov = self.crosshair in self.visible_cells
             reticle_texture = RETICLE_AMBER_TEXTURE if in_fov else RETICLE_RED_TEXTURE
@@ -267,7 +278,9 @@ class Arena(State):
         trail_mode = "Timed (0.15s)" if self.trail_timed else "Turn"
         scale_label = f"{scale_w}x{scale_h}"
         if self.shooting:
-            aim_hint = f" | aim x: {self.crosshair.x:2d} y: {self.crosshair.y:2d} | [LMB/Space/F] Fire"
+            in_fov = (self.crosshair in self.visible_cells) if self.raytracing_enabled else True
+            fire_action = "[LMB/Space/F] Fire" if in_fov else "(Blocked / Out of FOV)"
+            aim_hint = f" | aim x: {self.crosshair.x:2d} y: {self.crosshair.y:2d} | {fire_action}"
         else:
             aim_hint = ""
         status_text = f"x: {self.player.x:2d} y: {self.player.y:2d}{aim_hint}"

@@ -2,7 +2,7 @@
 Unit tests for geometric primitives, Point, Size, and Rect in sanctuary/core/geometry.py.
 """
 import pytest
-from sanctuary.core.geometry import Point, Size, Rect
+from sanctuary.core.geometry import Point, Size, Rect, ray8, ray4
 from sanctuary.core.primitives import Color
 
 
@@ -78,3 +78,48 @@ class TestRect:
         # Inverted corners
         rect_inv = Rect.from_corners(10, 10, 1, 1)
         assert rect_inv == rect
+
+
+class TestRays:
+    def test_ray8_and_ray4_point_blank(self) -> None:
+        pt = Point(5, 7)
+        assert ray8(pt, pt) == [pt]
+        assert ray4(pt, pt) == [pt]
+
+    def test_ray8_diagonal_stepping(self) -> None:
+        path = ray8(Point(0, 0), Point(4, 2))
+        assert path == [
+            Point(0, 0), Point(1, 0), Point(2, 1), Point(3, 1), Point(4, 2)
+        ]
+
+    def test_ray4_orthogonal_invariants(self) -> None:
+        path = ray4(Point(0, 0), Point(4, 2))
+        assert path == [
+            Point(0, 0), Point(1, 0), Point(2, 0), Point(2, 1),
+            Point(3, 1), Point(4, 1), Point(4, 2)
+        ]
+        # Invariant: Every step in ray4 must be strictly orthogonal (Manhattan distance == 1)
+        for i in range(len(path) - 1):
+            manhattan = abs(path[i + 1].x - path[i].x) + abs(path[i + 1].y - path[i].y)
+            assert manhattan == 1
+
+    def test_ray_all_directions(self) -> None:
+        origin = Point(0, 0)
+        targets = [
+            Point(3, 0), Point(-3, 0), Point(0, 4), Point(0, -4),
+            Point(2, 2), Point(-2, 2), Point(2, -2), Point(-2, -2),
+            Point(5, 2), Point(-5, 2), Point(5, -2), Point(-5, -2),
+        ]
+        for target in targets:
+            r8 = ray8(origin, target)
+            r4 = ray4(origin, target)
+            assert r8[0] == origin and r8[-1] == target
+            assert r4[0] == origin and r4[-1] == target
+
+            # Invariant: ray4 never steps diagonally
+            for i in range(len(r4) - 1):
+                assert abs(r4[i + 1].x - r4[i].x) + abs(r4[i + 1].y - r4[i].y) == 1
+
+            # Invariant: ray8 never jumps more than 1 Chebyshev unit
+            for i in range(len(r8) - 1):
+                assert max(abs(r8[i + 1].x - r8[i].x), abs(r8[i + 1].y - r8[i].y)) == 1
