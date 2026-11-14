@@ -9,10 +9,12 @@ import traceback
 from sanctuary.core.app import App
 from sanctuary.core.platform import create_platform
 from sanctuary.scenes.menu import create_main_menu
-
+from sanctuary.core.logger import logger_init
 
 def main() -> None:
     """Main application lifecycle entrypoint."""
+    logger_init()
+
     platform = create_platform()
 
     app = App(platform)

@@ -3,3 +3,5 @@
 
 # Hardware HID access for PS5 DualSense controllers & prototypes
 hidapi>=0.15.0
+
+loguru
