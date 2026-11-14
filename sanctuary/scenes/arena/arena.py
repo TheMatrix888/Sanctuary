@@ -3,7 +3,8 @@ Interactive tactical arena sandbox with discrete raytracing, procedural presets,
 and multi-resolution Texture rendering (1x1, 2x1, 4x2).
 """
 from sanctuary.core.config import MIN_COLUMNS, MIN_ROWS
-from sanctuary.core.geometry import Point, Size, field_of_view
+from sanctuary.core.geometry import Point, Size
+from sanctuary.core.shadowcasting import field_of_view
 from sanctuary.core.input_handler import InputHandler, Key
 from sanctuary.core.primitives import Color
 from sanctuary.core.screen import Screen
@@ -27,7 +28,7 @@ class Arena(State):
     map: str
     tilemap: TileMap
     player: Entity
-    visible_cells: set[Point]
+    visible_cells: dict[Point, int]
     scale_index: int
     raytracing_enabled: bool
     shooting: bool
@@ -39,8 +40,10 @@ class Arena(State):
     trail_timed: bool
     screen_size: Size
     _last_mouse_pos: Point | None
+    show_vertices: bool
 
     def __init__(self, map_name: str = DEFAULT_MAP) -> None:
+        self.show_vertices = False
         self.map = map_name
         self.scale_index = 0
         self.raytracing_enabled = True
@@ -86,8 +89,7 @@ class Arena(State):
     def update_fov(self) -> None:
         """Recalculates player line-of-sight visibility cache."""
         self.visible_cells = field_of_view(
-            self.player.x,
-            self.player.y,
+            Point(self.player.x, self.player.y),
             self.player.view_distance,
             self.tilemap.is_opaque,
         )
@@ -169,9 +171,15 @@ class Arena(State):
         if input_handler.just_pressed(Key.F2):
             self.reset(cycle_next_map(self.map))
 
+        if input_handler.just_pressed(Key.F3):
+            return ToggleMetrics()
+
         # Trail mode toggle (F4: Timed vs Turn-based)
         if input_handler.just_pressed(Key.F4):
             self.trail_timed = not self.trail_timed
+
+        if input_handler.just_pressed(Key.F5):
+            self.show_vertices = not self.show_vertices
 
         # Weapon discharge (Space or F when aiming)
         if self.shooting and input_handler.just_pressed(Key.SPACE, Key.F):
@@ -188,8 +196,6 @@ class Arena(State):
         # Lifecycle navigation
         if input_handler.just_pressed(Key.ESC):
             return Pop()
-        if input_handler.just_pressed(Key.F3):
-            return ToggleMetrics()
 
         return None
 
@@ -246,7 +252,7 @@ class Arena(State):
         origin_x = center_col - self.player.x * scale_w
         origin_y = center_row - self.player.y * scale_h
         visible = self.visible_cells if self.raytracing_enabled else None
-        self.tilemap.draw(screen, origin_x, origin_y, scale=self.tile_scale, visible_cells=visible)
+        self.tilemap.draw(screen, origin_x, origin_y, scale=self.tile_scale, visible_cells=visible, show_vertices=self.show_vertices)
 
         self.player.draw(screen, origin_x, origin_y, scale=self.tile_scale, transparent_space=True)
 
@@ -289,7 +295,8 @@ class Arena(State):
             f"[F1] {vision_mode} | "
             f"[F2] Map: {self.map} | "
             f"[F4] Trail: {trail_mode} | "
-            f"[Enter/RMB] {input_mode}"
+            f"[F5] Vertices {self.show_vertices}" # TODO change color of separate parts individually
+            f" | [Enter/RMB] {input_mode}"
         )
         screen.draw_text(
             0,

@@ -257,18 +257,18 @@ def draw_shot_ray(
             continue
 
         prev_x, prev_y = screen_points[index - 1]
-        delta_x = point_x - prev_x
-        delta_y = point_y - prev_y
+        next_x, next_y = screen_points[index + 1]
+        delta_in_x = point_x - prev_x
+        delta_in_y = point_y - prev_y
+        delta_out_x = next_x - point_x
+        delta_out_y = next_y - point_y
 
-        if is_pure_horizontal:
+        if is_pure_horizontal or (delta_in_y == 0 and delta_out_y == 0):
             char = "-"
-        elif is_pure_vertical:
+        elif is_pure_vertical or (delta_in_x == 0 and delta_out_x == 0):
             char = "|"
         else:
-            if delta_x != 0 and delta_y == 0:
-                char = "-"
-            else:
-                char = diag_char
+            char = diag_char
 
         # Vertical invariant: no diagonal slash directly above or below another diagonal slash
         above_char = screen.back_buffer.cells[point_y - 1][point_x].char if point_y > 0 else ""
@@ -279,7 +279,7 @@ def draw_shot_ray(
                 char = "|"
 
         # Horizontal invariant: strictly prevent '//' and '\\\\' horizontally adjacent
-        left_char = screen.back_buffer.cells[point_y][point_x - 1].char if point_y > 0 else ""
+        left_char = screen.back_buffer.cells[point_y][point_x - 1].char if point_x > 0 else ""
         right_char = screen.back_buffer.cells[point_y][point_x + 1].char if point_x + 1 < screen.size.columns else ""
 
         if char in ("\\", "/"):

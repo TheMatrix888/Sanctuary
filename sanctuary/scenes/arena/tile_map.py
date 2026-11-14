@@ -2,6 +2,7 @@
 Discrete 2D tile map model, spatial queries, and unified rendering.
 Universal grid representation for arenas, cities, stations, and spaceship decks.
 """
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 
 from sanctuary.core.geometry import Point
@@ -46,7 +47,8 @@ class TileMap:
         origin_x: int,
         origin_y: int,
         scale: tuple[int, int] = (1, 1),
-        visible_cells: set[Point] | None = None,
+        visible_cells: dict[Point, int] | None = None,
+        show_vertices: bool = False,
     ) -> None:
         """
         Renders the tilemap onto the screen at the given origin with footprint scaling.
@@ -54,13 +56,15 @@ class TileMap:
         """
         scale_w, scale_h = scale
         if visible_cells is not None:
-            for pt in visible_cells:
-                tile = self.get_tile(pt.x, pt.y)
+            for point in visible_cells:
+                tile = self.get_tile(point.x, point.y)
                 if tile != EMPTY:
-                    screen_x = origin_x + pt.x * scale_w
-                    screen_y = origin_y + pt.y * scale_h
+                    screen_x = origin_x + point.x * scale_w
+                    screen_y = origin_y + point.y * scale_h
                     surface = tile.texture.get_surface(scale)
                     screen.draw_surface(screen_x, screen_y, surface)
+                    if show_vertices and self.is_walkable(point.x, point.y):
+                        screen.draw_text(screen_x, screen_y, str(visible_cells[point]))
         else:
             for y in range(self.height):
                 for x in range(self.width):

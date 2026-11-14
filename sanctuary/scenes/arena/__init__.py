@@ -62,7 +62,7 @@ from .ballistics import (
     draw_shot_ray,
     trace_shot_ray,
 )
-from .state import (
+from .arena import (
     Arena,
 )
 from .textures import (
