@@ -22,6 +22,11 @@ OCTANTS: tuple[tuple[int, int, int, int], ...] = (
     (0, 1, -1, 0),   # East-South-East
 )
 
+# Sub-pixel vertex inset for cell visibility sampling.
+# Prevents grazing ray boundary collisions where open corridor floor cells
+# share boundary slopes at y = ±0.5 with adjacent touching walls.
+VERTEX_INSET: float = 0.001
+
 
 def octant_shadowcast(
     center: Point,
@@ -46,14 +51,14 @@ def octant_shadowcast(
             global_x = center.x + x * xx + y * xy
             global_y = center.y + x * yx + y * yy
 
-            vertices_slope = (
+            outer_slopes = (
                 (y - 0.5) / (x - 0.5),  # upper-left
                 (y + 0.5) / (x - 0.5),  # upper-right
                 (y - 0.5) / (x + 0.5),  # lower-left
                 (y + 0.5) / (x + 0.5),  # lower-right
             )
-            min_slope = min(vertices_slope)
-            max_slope = max(vertices_slope)
+            min_slope = min(outer_slopes)
+            max_slope = max(outer_slopes)
 
             # A cell is blocked only if its full angular extent is covered by a single solid shadow
             is_blocked = False
@@ -65,9 +70,19 @@ def octant_shadowcast(
             if is_blocked:
                 continue
 
+            # Sub-pixel inset slopes for sampling how many vertices of this cell are visible.
+            # Prevents grazing ray boundary collisions where corridor floor cells share y = ±0.5 edges with walls.
+            vis_d = 0.5 - VERTEX_INSET
+            vis_slopes = (
+                (y - vis_d) / (x - vis_d),
+                (y + vis_d) / (x - vis_d),
+                (y - vis_d) / (x + vis_d),
+                (y + vis_d) / (x + vis_d),
+            )
+
             # Count visible vertices not enclosed in any shadow interval
             seen_vertices = sum(
-                1 for slope in vertices_slope
+                1 for slope in vis_slopes
                 if not any(lower <= slope <= upper for lower, upper in blocked_intervals)
             )
             # If light illuminates the cell face through a gap, at least 1 vertex exposure is guaranteed

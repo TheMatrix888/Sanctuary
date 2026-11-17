@@ -121,3 +121,25 @@ def test_colosseum_spawn_ascii_snapshot() -> None:
             f"Actual:   {repr(actual_line)}"
         )
 
+
+def test_corridor_vertex_inset_invariance() -> None:
+    """
+    Verify that corridor floor cells between walls maintain all 4 visible vertices
+    instead of suffering grazing boundary occlusion where floor corners touch wall corners.
+    """
+    from sanctuary.scenes.arena import Arena
+
+    arena = Arena(map_name="Colosseum Arena")
+    arena.player.x = 29
+    arena.player.y = 14
+    arena.update_fov()
+
+    # In row y=14, corridor floor tiles between x=20 and x=29 should all have 4 vertices visible
+    for x in range(20, 30):
+        pt = Point(x, 14)
+        assert pt in arena.visible_cells
+        assert arena.visible_cells[pt] == 4, (
+            f"Floor cell {pt} has {arena.visible_cells[pt]} visible vertices, expected 4"
+        )
+
+
