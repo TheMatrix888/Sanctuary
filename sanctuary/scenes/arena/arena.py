@@ -19,6 +19,14 @@ from .textures import (
 )
 from .tile_map import TileMap
 
+FOV_VERTEX_COLORS: tuple[Color, ...] = (
+    Color(255, 255, 255),  # 0 - not used / fallback
+    Color(255, 0, 0),      # 1 red
+    Color(255, 128, 0),    # 2 orange
+    Color(255, 255, 0),    # 3 yellow
+    Color(0, 255, 0),      # 4 green
+)
+
 
 class Arena(State):
     """
@@ -252,7 +260,10 @@ class Arena(State):
         origin_x = center_col - self.player.x * scale_w
         origin_y = center_row - self.player.y * scale_h
         visible = self.visible_cells if self.raytracing_enabled else None
-        self.tilemap.draw(screen, origin_x, origin_y, scale=self.tile_scale, visible_cells=visible, show_vertices=self.show_vertices)
+        self.tilemap.draw(screen, origin_x, origin_y, scale=self.tile_scale, visible_cells=visible)
+
+        if self.show_vertices:
+            self._draw_fov_overlay(screen, origin_x, origin_y)
 
         self.player.draw(screen, origin_x, origin_y, scale=self.tile_scale, transparent_space=True)
 
@@ -290,13 +301,14 @@ class Arena(State):
         else:
             aim_hint = ""
         status_text = f"x: {self.player.x:2d} y: {self.player.y:2d}{aim_hint}"
+        vertices_mode = "On" if self.show_vertices else "Off"
         controls_text = (
             f"[Tab] Scale: {scale_label} | "
             f"[F1] {vision_mode} | "
             f"[F2] Map: {self.map} | "
             f"[F4] Trail: {trail_mode} | "
-            f"[F5] Vertices {self.show_vertices}" # TODO change color of separate parts individually
-            f" | [Enter/RMB] {input_mode}"
+            f"[F5] Vertices: {vertices_mode} | "
+            f"[Enter/RMB] {input_mode}"
         )
         screen.draw_text(
             0,
@@ -310,3 +322,17 @@ class Arena(State):
             controls_text.ljust(screen.size.columns)[:screen.size.columns],
             bg_color=Color(48, 48, 48),
         )
+
+    def _draw_fov_overlay(self, screen: Screen, origin_x: int, origin_y: int) -> None:
+        """Renders seen vertices count (1-4) onto illuminated walkable floor tiles."""
+        scale_w, scale_h = self.tile_scale
+        for point, seen_vertices in self.visible_cells.items():
+            if self.tilemap.is_walkable(point.x, point.y):
+                screen_x = origin_x + point.x * scale_w
+                screen_y = origin_y + point.y * scale_h
+                color = (
+                    FOV_VERTEX_COLORS[seen_vertices]
+                    if 0 <= seen_vertices < len(FOV_VERTEX_COLORS)
+                    else FOV_VERTEX_COLORS[0]
+                )
+                screen.draw_text(screen_x, screen_y, str(seen_vertices), fg_color=color)
